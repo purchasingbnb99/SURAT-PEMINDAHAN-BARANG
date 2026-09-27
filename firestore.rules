@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAnonymous() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && !isAnonymous()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function validStaffSession() {
+      return isAnonymous()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.namaStaff is string
+        && request.resource.data.namaStaff.size() >= 2
+        && request.resource.data.namaStaff.size() <= 80;
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow create: if false;
+      allow update: if isAdmin()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.email == resource.data.email;
+      allow delete: if false;
+    }
+
+    match /spb/{spbId} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.createdByName is string
+        && request.resource.data.signatureOwnerUid == request.auth.uid
+        && request.resource.data.signatureOwnerName is string
+        && request.resource.data.spbCode is string
+        && request.resource.data.type in ['Jasa','Retur','Umum']
+        && request.resource.data.fromCompany == 'PT. BEST & BEST INDONESIA';
+      allow update: if isAdmin()
+        && request.resource.data.spbCode == resource.data.spbCode
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByName == resource.data.createdByName
+        && (!resource.data.keys().hasAll(['signatureOwnerUid']) || request.resource.data.signatureOwnerUid == resource.data.signatureOwnerUid)
+        && (!resource.data.keys().hasAll(['signatureOwnerName']) || request.resource.data.signatureOwnerName == resource.data.signatureOwnerName)
+        && request.resource.data.signatureSnapshotData == resource.data.signatureSnapshotData
+        && request.resource.data.signatureVersion == resource.data.signatureVersion;
+      allow delete: if isAdmin();
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /yearCodes/{yearId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /destinations/{destinationId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /masterBarang/{barangId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /masterSatuan/{satuanId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /staffSessions/{sessionId} {
+      allow read: if isAdmin() || (isAnonymous() && request.auth.uid == sessionId);
+      allow create: if validStaffSession();
+      allow update: if isAnonymous()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.namaStaff == resource.data.namaStaff
+        && request.resource.data.namaStaff.size() >= 2
+        && request.resource.data.namaStaff.size() <= 80;
+      allow delete: if isAdmin() || (isAnonymous() && request.auth.uid == sessionId);
+    }
+  }
+}
