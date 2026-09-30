@@ -242,6 +242,87 @@
       .continuous-print .print-table{height:var(--cf-table-height)!important;min-height:var(--cf-table-height)!important}
     }
 
+
+
+    /* V1.0.31 — Continuous form: header closer to top + compact item rows inside fixed frame */
+    :root{
+      --cf-safe-top:10mm;
+      --cf-table-height:66mm;
+    }
+    .continuous-print .print-page{
+      padding-top:var(--cf-safe-top)!important;
+    }
+    .continuous-print .print-table-frame{
+      position:relative!important;
+      width:100%!important;
+      height:var(--cf-table-height)!important;
+      min-height:var(--cf-table-height)!important;
+      flex:0 0 var(--cf-table-height)!important;
+      box-sizing:border-box!important;
+      border:1px solid #111!important;
+      overflow:hidden!important;
+      background:#fff!important;
+    }
+    .continuous-print .print-table{
+      width:100%!important;
+      max-width:100%!important;
+      height:auto!important;
+      min-height:0!important;
+      border:0!important;
+      table-layout:fixed!important;
+      border-collapse:collapse!important;
+    }
+    .continuous-print .print-table thead th{
+      border:1px solid #111!important;
+      padding:2.6px 3.5px!important;
+      line-height:1.05!important;
+    }
+    .continuous-print .print-table tbody tr.item-row{
+      border:0!important;
+      height:auto!important;
+    }
+    .continuous-print .print-table tbody tr.item-row td{
+      border:0!important;
+      padding:2.1px 3.5px!important;
+      line-height:1.08!important;
+      height:auto!important;
+      vertical-align:top!important;
+    }
+    .continuous-print .print-table tbody tr.item-row td.center{
+      vertical-align:top!important;
+    }
+    .continuous-print .print-table tbody tr.print-note-row td{
+      border:1px solid #111!important;
+      padding:3.2px 4px!important;
+      line-height:1.12!important;
+      vertical-align:top!important;
+    }
+    .continuous-print .print-note-content{
+      line-height:1.15!important;
+    }
+    .continuous-print .print-qty-stack{
+      gap:.25mm!important;
+    }
+    .continuous-print .print-qty-line{
+      line-height:1.05!important;
+    }
+    .continuous-print .print-sign{
+      margin-top:2mm!important;
+    }
+    @media print{
+      .continuous-print .print-page{
+        padding-top:10mm!important;
+      }
+      .continuous-print .print-table-frame{
+        height:66mm!important;
+        min-height:66mm!important;
+        flex-basis:66mm!important;
+      }
+      .continuous-print .print-table{
+        height:auto!important;
+        min-height:0!important;
+      }
+    }
 </style>
 </head>
 <body>

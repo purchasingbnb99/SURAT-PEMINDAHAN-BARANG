@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.30';
+const APP_VERSION = '1.0.31';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
