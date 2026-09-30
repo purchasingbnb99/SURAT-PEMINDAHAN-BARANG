@@ -244,7 +244,7 @@
 
 
 
-    /* V1.0.32 — Fixed 6-item slots, 3-line text slots, NOTE locked to last page */
+    /* V1.0.33 — Fixed 6-item slots, 3-line text slots, NOTE locked to last page */
     :root{
       --cf-safe-top:10mm;
       --cf-table-height:66mm;
@@ -324,7 +324,17 @@
       }
     }
 
-    /* V1.0.32 — Fixed continuous-form layout: 6 item slots per page; NOTE only on last page */
+
+    /* V1.0.33 — Continuation pages repeat the pairing metadata (Kepada + No LRB/No SPB/Tanggal/Kategori/No PO) */
+    .continuous-print .print-info-row-continuation{
+      margin-top:1.5mm!important;
+      padding-bottom:1.5mm!important;
+    }
+    .continuous-print .print-info-row-continuation .print-to-value{font-size:9.2px!important;}
+    .continuous-print .print-info-row-continuation .print-meta-right{font-size:8.8px!important;}
+    .continuous-print .print-info-row-continuation .print-meta-right div{grid-template-columns:48px 7px minmax(0,1fr)!important;gap:1.5px!important;}
+
+    /* V1.0.33 — Fixed continuous-form layout: 6 item slots per page; NOTE only on last page */
     :root{
       --cf-table-height:74mm;
       --cf-item-slot-height:9mm;

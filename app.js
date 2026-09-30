@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.32';
+const APP_VERSION = '1.0.33';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -1202,7 +1202,7 @@ function printSpb(item,{signatureData=null}={}) {
     const continuation=index>0; const isLast=index===total-1; const printTimestamp=formatPrintTimestamp();
     const printSlots=padPrintItemSlots(pageItems,6);
     const header=continuation
-      ? `<div class="print-continuation-head"><div class="print-cont-company">${COMPANY_NAME}</div><div class="print-cont-title">SURAT PEMINDAHAN BARANG — LANJUTAN</div><div class="print-cont-meta">No SPB: ${escapeHtml(item.spbCode)} • Lembar ${index+1} dari ${total}</div></div>`
+      ? `<div class="print-continuation-head"><div class="print-cont-company">${COMPANY_NAME}</div><div class="print-cont-title">SURAT PEMINDAHAN BARANG — LANJUTAN</div><div class="print-cont-meta">No SPB: ${escapeHtml(item.spbCode)} • Lembar ${index+1} dari ${total}</div></div><div class="print-info-row print-info-row-continuation"><div class="print-to"><div class="print-to-label">Kepada</div><div class="print-to-value">${printKepada(item)}</div></div><div class="print-meta-right"><div><b>No LRB</b><span>:</span><span>${escapeHtml(item.noLrb||'-')}</span></div><div><b>No SPB</b><span>:</span><span>${escapeHtml(item.spbCode)}</span></div><div><b>Tanggal</b><span>:</span><span>${formatDate(item.tanggal)}</span></div><div><b>Kategori</b><span>:</span><span>${escapeHtml(item.returCategory||'-')}</span></div><div><b>No PO</b><span>:</span><span>${printNoPo(item)}</span></div></div></div>`
       : `<div class="print-head"><div class="print-company">${COMPANY_NAME}</div><div class="print-title">SURAT PEMINDAHAN BARANG</div></div><div class="print-info-row"><div class="print-to"><div class="print-to-label">Kepada</div><div class="print-to-value">${printKepada(item)}</div></div><div class="print-meta-right"><div><b>No LRB</b><span>:</span><span>${escapeHtml(item.noLrb||'-')}</span></div><div><b>No SPB</b><span>:</span><span>${escapeHtml(item.spbCode)}</span></div><div><b>Tanggal</b><span>:</span><span>${formatDate(item.tanggal)}</span></div><div><b>Kategori</b><span>:</span><span>${escapeHtml(item.returCategory||'-')}</span></div><div><b>No PO</b><span>:</span><span>${printNoPo(item)}</span></div></div></div>`;
     const itemRows=printSlots.map(x=>x
       ? `<tr class="item-row"><td class="center">${escapeHtml(x.no)}</td><td><div class="print-item-text">${escapeHtml(x.namaBarang||'')}</div></td><td><div class="print-item-text">${escapeHtml(x.keterangan||'')}</div></td>${printQtyCells(x,columns)}</tr>`
