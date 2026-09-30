@@ -129,7 +129,7 @@
     .print-table tbody tr.item-row{border:0!important}
     .print-table tbody tr.print-note-row td{border:1px solid #111!important}
     /* V1.0.27 — Password re-authentication is required for every automatic signature use */
-    /* V1.0.28 — Detail Barang order: Keterangan → Qty/Satuan → Qty Order → Qty Retur → % */
+    /* V1.0.29 — Detail Barang order: Keterangan → Qty/Satuan → Qty Order → Qty Retur → % */
     :root{
       --spb-col-no:42px;
       --spb-col-kode:170px;
@@ -147,7 +147,7 @@
     .item-grid-row .item-field[data-field="persen"]{min-width:90px;width:100%;box-sizing:border-box;text-align:right;overflow:visible}
     @media (max-width:640px){.item-grid{min-width:1433px}}
 
-    /* V1.0.28 — Half-A4 print area, larger readable typography, flexible no-TTD printing */
+    /* V1.0.29 baseline — Half-A4 print area retained for legacy; continuous form print overrides below */
     .print-table-frame{min-height:148.5mm;width:100%;display:block}
     .print-table-frame .print-table{width:100%;height:auto}
     .print-page{min-height:277mm}
@@ -173,6 +173,65 @@
     .print-table th:nth-child(2),.print-table td:nth-child(2),.print-table th:nth-child(3),.print-table td:nth-child(3){overflow-wrap:anywhere;word-break:break-word}
     .print-table th.numeric,.print-table td.right{white-space:nowrap}
 
+    /* V1.0.29 — Continuous Form 9.5in x 11in, divided into two 9.5in x 5.5in forms */
+    :root{
+      --cf-width:241.3mm;
+      --cf-height:139.7mm;
+      --cf-safe-x:7mm;
+      --cf-safe-top:4mm;
+      --cf-safe-bottom:3mm;
+    }
+    .continuous-print .print-page{
+      width:var(--cf-width);
+      height:var(--cf-height);
+      min-height:var(--cf-height);
+      margin:0;
+      padding:var(--cf-safe-top) var(--cf-safe-x) var(--cf-safe-bottom);
+      box-sizing:border-box;
+      overflow:hidden;
+      page-break-after:always;
+      break-after:page;
+    }
+    .continuous-print .print-page:last-child{page-break-after:auto;break-after:auto}
+    .continuous-print .print-table-frame{
+      width:100%;
+      min-height:52mm;
+      box-sizing:border-box;
+    }
+    .continuous-print .print-table{
+      width:100%;
+      max-width:100%;
+      table-layout:fixed;
+    }
+    .continuous-print .print-company{font-size:15px}
+    .continuous-print .print-title{font-size:16px}
+    .continuous-print .print-info-row{margin-top:2.5mm;padding-bottom:1mm}
+    .continuous-print .print-to-value{font-size:9.5px}
+    .continuous-print .print-meta-right{font-size:9px}
+    .continuous-print .print-table{font-size:9.5px}
+    .continuous-print .print-table th{font-size:9px;padding:2.8px 3.5px}
+    .continuous-print .print-table td{font-size:9.5px;padding:3px 3.5px}
+    .continuous-print .print-note-row td{padding:4px 5px!important}
+    .continuous-print .print-note-row strong{font-size:8.5px}
+    .continuous-print .print-note-content{font-size:9px;line-height:1.18}
+    .continuous-print .print-sign{margin-top:2.5mm}
+    .continuous-print .print-sign-box{min-height:11.5mm}
+    .continuous-print .print-sign-box .sig-space{height:4mm}
+    .continuous-print .print-sign-box img{max-width:13mm;max-height:4mm}
+    .continuous-print .print-sign-box .line{width:60%}
+    .continuous-print .print-sign-box .name{min-height:3.5mm;font-size:7.5px}
+    .continuous-print .print-footer{margin-top:1.5mm;padding-top:1mm;font-size:7px}
+    .continuous-print .print-continuation-head{margin-bottom:2mm}
+    .continuous-print .print-cont-company{font-size:11px}
+    .continuous-print .print-cont-title{font-size:11.5px}
+    .continuous-print .print-cont-meta{font-size:8px}
+    @media print{
+      @page{size:9.5in 5.5in;margin:0}
+      .continuous-print{width:var(--cf-width)!important;margin:0!important}
+      .continuous-print .print-page{width:var(--cf-width)!important;height:var(--cf-height)!important;min-height:var(--cf-height)!important;margin:0!important;overflow:hidden!important}
+      .continuous-print .print-table-frame{min-height:52mm!important}
+    }
+
 </style>
 </head>
 <body>
@@ -181,7 +240,7 @@
   <div id="loginRoot" class="login-shell">
     <div class="login-card">
       <div class="login-hero">
-        <div class="badge">SPB • V1.0.28</div>
+        <div class="badge">SPB • V1.0.29</div>
         <div class="hero-title">SURAT<br>PEMINDAHAN BARANG</div>
         <div class="hero-copy">Administrasi SPB yang ringan, terstruktur, dan siap digunakan di desktop maupun HP. Database utama menggunakan Firebase Firestore tanpa Cloud Storage.</div>
         <div class="hero-grid">

@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.28';
+const APP_VERSION = '1.0.29';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -1070,7 +1070,7 @@ function printReport(rows,allRetur=false) {
   const title=reportHeaderTitle(allRetur);
   const period=`Periode: ${formatDate(f.start)} s/d ${formatDate(f.end)}`;
   const body=pages.map((page,i)=>`<div class="report-page"><div class="report-header"><div class="company">${COMPANY_NAME}</div><div class="title">LAPORAN SURAT PEMINDAHAN BARANG</div><div class="meta">${escapeHtml(title)} • ${escapeHtml(period)}${allRetur?' • Setiap kategori dipisahkan':''}</div></div>${renderReportPrintGroup(page.name,page.rows)}<div class="report-footer"><span class="print-time">Dicetak: ${escapeHtml(reportPrintedAt)}</span><span>Lembar ${i+1} dari ${pages.length}</span></div></div>`).join('');
-  printHtml(body,'landscape');
+  printHtml(body,'landscape','report');
 }
 
 function paginateItems(items) {
@@ -1191,7 +1191,7 @@ async function requestProtectedSpbPrint(item){
 function printSpbById(id){return requestProtectedSpbPrintById(id);}
 function printSpb(item,{signatureData=null}={}) {
   if(!item)return;
-  const pages=paginateItems(item.items||[]); const total=pages.length; const columns=printColumnsForItems(item.items||[]); let html='';
+  const pages=paginateItems(item.items||[],6.4); const total=pages.length; const columns=printColumnsForItems(item.items||[]); let html='';
   pages.forEach((pageItems,index)=>{
     const continuation=index>0; const isLast=index===total-1; const printTimestamp=formatPrintTimestamp();
     const header=continuation
@@ -1206,15 +1206,18 @@ function printSpb(item,{signatureData=null}={}) {
     const table=`<div class="print-table-frame"><table class="print-table">${colgroup}<thead><tr><th>No</th><th>Nama Barang</th><th>Keterangan</th>${printQtyHeaders(columns)}</tr></thead><tbody>${itemRows}${noteRow}</tbody></table></div>`;
     html+=`<div class="print-page ${continuation?'continuation':''}">${header}${table}${isLast?`<div class="print-sign"><div class="print-sign-box"><div class="role">DIBUAT</div><div class="sig-space">${signatureData?`<img src="${escapeHtml(signatureData)}" alt="TTD Admin">`:''}</div><div class="line"></div><div class="name">${escapeHtml(item.createdByName||'')}</div></div><div class="print-sign-box"><div class="role">DISETUJUI</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">GUDANG / INVENTORY</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">PENERIMA</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div></div>`:''}<div class="print-footer"><span class="print-time">Dicetak: ${escapeHtml(printTimestamp)}</span><span>Lembar ${index+1} dari ${total}</span></div></div>`;
   });
-  printHtml(html,'portrait');
+  printHtml(html,'landscape','continuous');
 }
 
-async function printHtml(html,orientation='portrait') {
+async function printHtml(html,orientation='portrait',mode='a4') {
   const area=$('printArea');
-  area.innerHTML=`<div class="print-doc ${orientation==='landscape'?'report-print':''}">${html}</div>`;
+  const modeClass=mode==='continuous'?'continuous-print':(mode==='report'?'report-print':'');
+  area.innerHTML=`<div class="print-doc ${modeClass}">${html}</div>`;
   const style=document.createElement('style');
   style.id='printDynamicStyle';
-  style.textContent=`@media print{@page{size:A4 ${orientation};margin:10mm}#printArea{display:block!important}}`;
+  style.textContent=mode==='continuous'
+    ? `@media print{@page{size:9.5in 5.5in;margin:0}#printArea{display:block!important}#printArea .continuous-print .print-page{width:241.3mm!important;height:139.7mm!important;min-height:139.7mm!important;margin:0!important;overflow:hidden!important;break-after:page}}`
+    : `@media print{@page{size:A4 ${orientation};margin:10mm}#printArea{display:block!important}}`;
   document.head.appendChild(style);
   try {
     const images=[...area.querySelectorAll('img')];
