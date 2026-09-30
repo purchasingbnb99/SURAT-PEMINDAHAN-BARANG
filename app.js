@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.29';
+const APP_VERSION = '1.0.30';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -1073,10 +1073,21 @@ function printReport(rows,allRetur=false) {
   printHtml(body,'landscape','report');
 }
 
-function paginateItems(items) {
+function paginateItems(items, targetWeight=6.4) {
   const pages=[]; let current=[]; let weight=0;
-  const itemWeight=(x)=>1 + Math.min(2,Math.ceil(String(x.namaBarang||'').length/40)*0.22) + Math.min(2,Math.ceil(String(x.keterangan||'').length/45)*0.22);
-  for(const item of items){const w=itemWeight(item);if(current.length && weight+w>9.2){pages.push(current);current=[];weight=0;}current.push(item);weight+=w;}
+  const itemWeight=(x)=>{
+    const nameLines=Math.ceil(String(x.namaBarang||'').length/48);
+    const noteLines=Math.ceil(String(x.keterangan||'').length/54);
+    const qtyLines=normalizedQuantityLines(x).length;
+    return 1 + Math.min(1.2,nameLines*0.18) + Math.min(1.2,noteLines*0.18) + Math.min(1.0,qtyLines*0.22);
+  };
+  for(const item of items){
+    const w=itemWeight(item);
+    const reachedWeight=current.length && weight+w>targetWeight;
+    const reachedSlots=current.length>=4;
+    if(reachedWeight || reachedSlots){pages.push(current);current=[];weight=0;}
+    current.push(item);weight+=w;
+  }
   if(current.length)pages.push(current);
   return pages.length?pages:[[]];
 }

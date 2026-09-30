@@ -180,6 +180,7 @@
       --cf-safe-x:7mm;
       --cf-safe-top:4mm;
       --cf-safe-bottom:3mm;
+      --cf-table-height:66mm;
     }
     .continuous-print .print-page{
       width:var(--cf-width);
@@ -195,14 +196,22 @@
     .continuous-print .print-page:last-child{page-break-after:auto;break-after:auto}
     .continuous-print .print-table-frame{
       width:100%;
-      min-height:52mm;
+      height:var(--cf-table-height);
+      min-height:var(--cf-table-height);
       box-sizing:border-box;
+      flex:0 0 var(--cf-table-height);
+      overflow:visible;
     }
     .continuous-print .print-table{
       width:100%;
       max-width:100%;
+      height:var(--cf-table-height);
+      min-height:var(--cf-table-height);
       table-layout:fixed;
     }
+    .continuous-print .print-table tbody{height:auto}
+    .continuous-print .print-table td{vertical-align:top} 
+    .continuous-print .print-sign,.continuous-print .print-footer{flex-shrink:0}
     .continuous-print .print-company{font-size:15px}
     .continuous-print .print-title{font-size:16px}
     .continuous-print .print-info-row{margin-top:2.5mm;padding-bottom:1mm}
@@ -229,7 +238,8 @@
       @page{size:9.5in 5.5in;margin:0}
       .continuous-print{width:var(--cf-width)!important;margin:0!important}
       .continuous-print .print-page{width:var(--cf-width)!important;height:var(--cf-height)!important;min-height:var(--cf-height)!important;margin:0!important;overflow:hidden!important}
-      .continuous-print .print-table-frame{min-height:52mm!important}
+      .continuous-print .print-table-frame{height:var(--cf-table-height)!important;min-height:var(--cf-table-height)!important;flex-basis:var(--cf-table-height)!important}
+      .continuous-print .print-table{height:var(--cf-table-height)!important;min-height:var(--cf-table-height)!important}
     }
 
 </style>
@@ -240,7 +250,7 @@
   <div id="loginRoot" class="login-shell">
     <div class="login-card">
       <div class="login-hero">
-        <div class="badge">SPB • V1.0.29</div>
+        <div class="badge">SPB • V1.0.30</div>
         <div class="hero-title">SURAT<br>PEMINDAHAN BARANG</div>
         <div class="hero-copy">Administrasi SPB yang ringan, terstruktur, dan siap digunakan di desktop maupun HP. Database utama menggunakan Firebase Firestore tanpa Cloud Storage.</div>
         <div class="hero-grid">
