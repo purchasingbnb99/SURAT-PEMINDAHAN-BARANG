@@ -1,4 +1,4 @@
-# SURAT PEMINDAHAN BARANG — V1.0.27
+# SURAT PEMINDAHAN BARANG — V1.0.28
 
 Aplikasi web SPB berbasis HTML/JavaScript + Tailwind CSS + Firebase Authentication + Firestore. Tidak menggunakan Firebase Cloud Storage.
 
@@ -50,7 +50,7 @@ Data SPB lama yang masih memiliki `qtyPcs`, `qtyKg`, `qtyRol`, atau `satuan` dim
 - Saat mode satu PO aktif, No. PO di setiap baris mengikuti No. PO utama dan tidak perlu diketik ulang.
 - Dokumen menyimpan `poMode` dan `sharedNoPo`; item tetap menyimpan `noPo` efektif untuk kompatibilitas laporan/print/import/export.
 
-## V1.0.27 — Cari SPB: Nama Barang + Qty/Satuan
+## V1.0.28 — Cari SPB: Nama Barang + Qty/Satuan
 - Tabel Cari SPB menampilkan kolom Nama Barang dan Qty / Satuan berdampingan.
 - Setiap item menampilkan seluruh Qty/Satuan yang tersimpan, misalnya 620 PCS dan 2 KG.
 - Data lama memakai normalisasi Qty/Satuan yang sama sehingga tetap terbaca.
@@ -58,3 +58,9 @@ Data SPB lama yang masih memiliki `qtyPcs`, `qtyKg`, `qtyRol`, atau `satuan` dim
 
 ### Proteksi TTD Otomatis
 Setiap penggunaan TTD otomatis pada Print SPB wajib melalui re-authentication Firebase dengan password Admin. Verifikasi dilakukan setiap kali print, tidak disimpan di localStorage/Firestore, dan aplikasi memeriksa owner UID TTD sebelum digunakan. SPB baru juga menyimpan signatureOwnerUid/signatureOwnerName.
+
+
+V1.0.28: Reordered item inputs (Keterangan → Qty/Satuan → Qty Order → Qty Retur → %), added password-optional printing without automatic signature, enlarged print name column and typography, and established a minimum half-A4 print table area (148.5 mm) that expands when content requires more space.
+
+
+V1.0.28 notes: Detail input order is Keterangan → Qty/Satuan → Qty Order → Qty Retur → %. SPB print supports “Print Tanpa TTD” without password; automatic TTD still requires owner UID plus Firebase password re-authentication. The print table has a 148.5 mm minimum (half of A4 height), with larger typography and a wider Nama Barang column.

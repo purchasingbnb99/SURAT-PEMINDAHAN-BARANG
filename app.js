@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.27';
+const APP_VERSION = '1.0.28';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -572,8 +572,8 @@ async function renderSpbForm(editId=null) {
 function renderFormItems() {
   const wrap=$('itemsTableWrap');
   if(!wrap)return;
-  const headers=['No','Kode Barang','Nama Barang','No. PO','Keterangan','Qty Order','Qty Retur','Qty / Satuan','%','Aksi'];
-  const head=`<div class="item-grid-head" role="row">${headers.map((h,i)=>`<div class="item-grid-cell ${[0,5,6,8,9].includes(i)?'center':''}" role="columnheader">${h}</div>`).join('')}</div>`;
+  const headers=['No','Kode Barang','Nama Barang','No. PO','Keterangan','Qty / Satuan','Qty Order','Qty Retur','%','Aksi'];
+  const head=`<div class="item-grid-head" role="row">${headers.map((h,i)=>`<div class="item-grid-cell ${[0,6,7,8,9].includes(i)?'center':''}" role="columnheader">${h}</div>`).join('')}</div>`;
   const rows=state.formItems.map((item,i)=>{
     if(!Array.isArray(item.quantities)) item.quantities=normalizeQuantities(item);
     const qtyRows=item.quantities.length?item.quantities:[{qty:'',satuan:(item.unitModes?.[0]||availableUnits()[0]||'')}];
@@ -587,9 +587,9 @@ function renderFormItems() {
       <div class="item-grid-cell" role="gridcell"><input class="input item-field" data-index="${i}" data-field="namaBarang" value="${escapeHtml(item.namaBarang)}" placeholder="Nama barang"></div>
       <div class="item-grid-cell" role="gridcell"><input class="input item-field" data-index="${i}" data-field="noPo" value="${escapeHtml(state.formPoMode==='single'?state.formSharedPo:item.noPo)}" placeholder="No. PO" ${state.formPoMode==='single'?'readonly title="Mengikuti No. PO untuk semua barang"':''}></div>
       <div class="item-grid-cell" role="gridcell"><input class="input item-field" data-index="${i}" data-field="keterangan" value="${escapeHtml(item.keterangan)}" placeholder="Keterangan"></div>
+      <div class="item-grid-cell qty-unit-cell" role="gridcell"><div class="qty-lines">${qtyHtml}</div><button type="button" class="btn btn-secondary btn-xs qty-add-btn" data-index="${i}">+ Satuan</button></div>
       <div class="item-grid-cell numeric" role="gridcell"><input class="input item-field qty-calc" data-index="${i}" data-field="qtyOrder" value="${escapeHtml(item.qtyOrder)}" type="number" min="0" step="any" placeholder="0"></div>
       <div class="item-grid-cell numeric" role="gridcell"><input class="input item-field qty-calc" data-index="${i}" data-field="qtyRetur" value="${escapeHtml(item.qtyRetur)}" type="number" min="0" step="any" placeholder="0"></div>
-      <div class="item-grid-cell qty-unit-cell" role="gridcell"><div class="qty-lines">${qtyHtml}</div><button type="button" class="btn btn-secondary btn-xs qty-add-btn" data-index="${i}">+ Satuan</button></div>
       <div class="item-grid-cell numeric" role="gridcell"><input class="input item-field" data-index="${i}" data-field="persen" value="${escapeHtml(pct)}" type="number" min="0" max="100" step="0.01" placeholder="0" readonly title="Otomatis: Qty Retur ÷ Qty Order × 100"></div>
       <div class="item-grid-cell center" role="gridcell"><button type="button" class="btn btn-danger btn-sm" data-remove-item="${i}" ${state.formItems.length===1?'disabled':''}>Hapus</button></div>
     </div>`;
@@ -1134,65 +1134,62 @@ async function verifyAutomaticSignatureAccess(item, onVerified){
     return onVerified({signatureData:null,verified:false});
   }
 
-  if(state.role!=='admin' || !state.user || state.user.isAnonymous){
-    showToast('TTD otomatis hanya dapat digunakan oleh Admin.','error');
-    return;
-  }
-
+  const isAdmin=state.role==='admin' && state.user && !state.user.isAnonymous;
   const ownerUid=item.signatureOwnerUid||item.createdByUid||'';
-  if(!ownerUid){
-    showToast('Pemilik TTD pada SPB ini tidak dapat diverifikasi. TTD otomatis diblokir untuk keamanan.','error');
-    return;
-  }
-  if(ownerUid!==state.user.uid){
-    showToast('TTD otomatis milik Admin lain dan tidak dapat digunakan oleh akun ini.','error');
-    return;
-  }
+  const isOwner=Boolean(isAdmin && ownerUid && ownerUid===state.user.uid);
+  const ownerName=item.signatureOwnerName||item.createdByName||'Admin';
 
   openModal(`
     <div class="modal-head">
-      <div><div class="card-title">Konfirmasi TTD Otomatis</div><div class="small-help">Password wajib dimasukkan setiap kali TTD otomatis digunakan. Password tidak disimpan oleh aplikasi.</div></div>
+      <div><div class="card-title">Konfirmasi Cetak SPB</div><div class="small-help">TTD otomatis hanya digunakan setelah verifikasi password Admin. Tanpa password, dokumen tetap bisa dicetak tanpa menampilkan TTD otomatis.</div></div>
       <button type="button" class="btn btn-soft" data-close-modal>Tutup</button>
     </div>
-    <form id="ttdConfirmForm" class="modal-body" style="display:grid;gap:14px">
-      <div class="alert alert-success">TTD terdaftar untuk Admin: <strong>${escapeHtml(item.signatureOwnerName||item.createdByName||state.profile?.name||state.user.email||'Admin')}</strong></div>
-      <div class="field"><label for="ttdConfirmPassword">Password Admin *</label><input id="ttdConfirmPassword" type="password" class="input" autocomplete="current-password" required></div>
-      <div class="modal-foot" style="margin:0 -20px -20px"><button type="button" class="btn btn-secondary" data-close-modal>Batal</button><button id="ttdConfirmBtn" class="btn btn-primary" type="submit">Gunakan TTD & Print</button></div>
-    </form>`);
+    <div class="modal-body" style="display:grid;gap:14px">
+      <div class="alert alert-info">TTD otomatis terdaftar untuk Admin: <strong>${escapeHtml(ownerName)}</strong></div>
+      <button id="printWithoutSignatureBtn" type="button" class="btn btn-secondary">Print Tanpa TTD</button>
+      ${isOwner?`<form id="ttdConfirmForm" style="display:grid;gap:12px;border-top:1px solid var(--line);padding-top:14px">
+        <div class="field"><label for="ttdConfirmPassword">Password Admin untuk TTD Otomatis *</label><input id="ttdConfirmPassword" type="password" class="input" autocomplete="current-password" required></div>
+        <button id="ttdConfirmBtn" class="btn btn-primary" type="submit">Gunakan TTD & Print</button>
+      </form>`:`<div class="small-help">Akun yang sedang login bukan pemilik TTD ini. Untuk keamanan, hanya opsi Print Tanpa TTD yang tersedia.</div>`}
+    </div>`);
   $('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
-  const form=$('ttdConfirmForm');
-  form.addEventListener('submit',async e=>{
-    e.preventDefault();
-    const password=$('ttdConfirmPassword').value;
-    if(!password){showToast('Password Admin wajib diisi.','warning');return;}
-    const btn=$('ttdConfirmBtn');
-    setBusy(btn,true,'Memverifikasi...');
-    try{
-      const email=state.user?.email;
-      if(!email) throw Object.assign(new Error('Akun Admin tidak memiliki email untuk verifikasi password.'),{code:'auth/invalid-credential'});
-      const credential=EmailAuthProvider.credential(email,password);
-      await reauthenticateWithCredential(state.user,credential);
-      closeModal();
-      await onVerified({signatureData,verified:true});
-    }catch(err){
-      console.error(err);
-      showToast(err?.code==='auth/invalid-credential' || err?.code==='auth/wrong-password' ? 'Password Admin salah.' : firebaseError(err),'error');
-    }finally{
-      setBusy(btn,false);
-    }
-  });
+  $('printWithoutSignatureBtn').addEventListener('click',async()=>{closeModal();await onVerified({signatureData:null,verified:false});});
+
+  if(isOwner){
+    const form=$('ttdConfirmForm');
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();
+      const password=$('ttdConfirmPassword').value;
+      if(!password){showToast('Password Admin wajib diisi untuk menggunakan TTD otomatis.','warning');return;}
+      const btn=$('ttdConfirmBtn');
+      setBusy(btn,true,'Memverifikasi...');
+      try{
+        const email=state.user?.email;
+        if(!email) throw Object.assign(new Error('Akun Admin tidak memiliki email untuk verifikasi password.'),{code:'auth/invalid-credential'});
+        const credential=EmailAuthProvider.credential(email,password);
+        await reauthenticateWithCredential(state.user,credential);
+        closeModal();
+        await onVerified({signatureData,verified:true});
+      }catch(err){
+        console.error(err);
+        showToast(err?.code==='auth/invalid-credential' || err?.code==='auth/wrong-password' ? 'Password Admin salah.' : firebaseError(err),'error');
+      }finally{
+        setBusy(btn,false);
+      }
+    });
+  }
 }
 
 async function requestProtectedSpbPrint(item){
   if(!item)return;
   if(item.signatureSnapshotData){
-    return verifyAutomaticSignatureAccess(item, async()=>printSpb(item));
+    return verifyAutomaticSignatureAccess(item, async({signatureData})=>printSpb(item,{signatureData}));
   }
-  return printSpb(item);
+  return printSpb(item,{signatureData:null});
 }
 
 function printSpbById(id){return requestProtectedSpbPrintById(id);}
-function printSpb(item) {
+function printSpb(item,{signatureData=null}={}) {
   if(!item)return;
   const pages=paginateItems(item.items||[]); const total=pages.length; const columns=printColumnsForItems(item.items||[]); let html='';
   pages.forEach((pageItems,index)=>{
@@ -1204,10 +1201,10 @@ function printSpb(item) {
     const noteRow=isLast?`<tr class="print-note-row"><td colspan="${3+columns.length}"><strong>NOTE</strong><div class="print-note-content">${multilineHtml(item.note||'-')}</div></td></tr>`:'';
     const hasPercent=columns.some(([field])=>field==='persen');
     const colgroup=hasPercent
-      ? `<colgroup><col style="width:6%"><col style="width:24%"><col style="width:47%"><col style="width:16%"><col style="width:7%"></colgroup>`
-      : `<colgroup><col style="width:6%"><col style="width:25%"><col style="width:54%"><col style="width:15%"></colgroup>`;
-    const table=`<table class="print-table">${colgroup}<thead><tr><th>No</th><th>Nama Barang</th><th>Keterangan</th>${printQtyHeaders(columns)}</tr></thead><tbody>${itemRows}${noteRow}</tbody></table>`;
-    html+=`<div class="print-page ${continuation?'continuation':''}">${header}${table}${isLast?`<div class="print-sign"><div class="print-sign-box"><div class="role">DIBUAT</div><div class="sig-space">${item.signatureSnapshotData?`<img src="${escapeHtml(item.signatureSnapshotData)}" alt="TTD Admin">`:''}</div><div class="line"></div><div class="name">${escapeHtml(item.createdByName||'')}</div></div><div class="print-sign-box"><div class="role">DISETUJUI</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">GUDANG / INVENTORY</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">PENERIMA</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div></div>`:''}<div class="print-footer"><span class="print-time">Dicetak: ${escapeHtml(printTimestamp)}</span><span>Lembar ${index+1} dari ${total}</span></div></div>`;
+      ? `<colgroup><col style="width:6%"><col style="width:28%"><col style="width:43%"><col style="width:17%"><col style="width:6%"></colgroup>`
+      : `<colgroup><col style="width:6%"><col style="width:30%"><col style="width:48%"><col style="width:16%"></colgroup>`;
+    const table=`<div class="print-table-frame"><table class="print-table">${colgroup}<thead><tr><th>No</th><th>Nama Barang</th><th>Keterangan</th>${printQtyHeaders(columns)}</tr></thead><tbody>${itemRows}${noteRow}</tbody></table></div>`;
+    html+=`<div class="print-page ${continuation?'continuation':''}">${header}${table}${isLast?`<div class="print-sign"><div class="print-sign-box"><div class="role">DIBUAT</div><div class="sig-space">${signatureData?`<img src="${escapeHtml(signatureData)}" alt="TTD Admin">`:''}</div><div class="line"></div><div class="name">${escapeHtml(item.createdByName||'')}</div></div><div class="print-sign-box"><div class="role">DISETUJUI</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">GUDANG / INVENTORY</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">PENERIMA</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div></div>`:''}<div class="print-footer"><span class="print-time">Dicetak: ${escapeHtml(printTimestamp)}</span><span>Lembar ${index+1} dari ${total}</span></div></div>`;
   });
   printHtml(html,'portrait');
 }
