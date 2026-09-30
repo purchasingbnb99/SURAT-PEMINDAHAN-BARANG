@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.31';
+const APP_VERSION = '1.0.32';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -1073,23 +1073,18 @@ function printReport(rows,allRetur=false) {
   printHtml(body,'landscape','report');
 }
 
-function paginateItems(items, targetWeight=6.4) {
-  const pages=[]; let current=[]; let weight=0;
-  const itemWeight=(x)=>{
-    const nameLines=Math.ceil(String(x.namaBarang||'').length/48);
-    const noteLines=Math.ceil(String(x.keterangan||'').length/54);
-    const qtyLines=normalizedQuantityLines(x).length;
-    return 1 + Math.min(1.2,nameLines*0.18) + Math.min(1.2,noteLines*0.18) + Math.min(1.0,qtyLines*0.22);
-  };
-  for(const item of items){
-    const w=itemWeight(item);
-    const reachedWeight=current.length && weight+w>targetWeight;
-    const reachedSlots=current.length>=4;
-    if(reachedWeight || reachedSlots){pages.push(current);current=[];weight=0;}
-    current.push(item);weight+=w;
+function paginateItems(items, maxPerPage=6) {
+  const source=Array.isArray(items)?items:[];
+  const pages=[];
+  for(let i=0;i<source.length;i+=maxPerPage){
+    pages.push(source.slice(i,i+maxPerPage));
   }
-  if(current.length)pages.push(current);
   return pages.length?pages:[[]];
+}
+function padPrintItemSlots(items, slotCount=6) {
+  const source=Array.isArray(items)?items.slice(0,slotCount):[];
+  while(source.length<slotCount) source.push(null);
+  return source;
 }
 function hasExplicitSatuan(items){
   return (items||[]).some(x=>String(x.satuan||x.unit||'').trim()!=='');
@@ -1205,11 +1200,15 @@ function printSpb(item,{signatureData=null}={}) {
   const pages=paginateItems(item.items||[],6.4); const total=pages.length; const columns=printColumnsForItems(item.items||[]); let html='';
   pages.forEach((pageItems,index)=>{
     const continuation=index>0; const isLast=index===total-1; const printTimestamp=formatPrintTimestamp();
+    const printSlots=padPrintItemSlots(pageItems,6);
     const header=continuation
       ? `<div class="print-continuation-head"><div class="print-cont-company">${COMPANY_NAME}</div><div class="print-cont-title">SURAT PEMINDAHAN BARANG — LANJUTAN</div><div class="print-cont-meta">No SPB: ${escapeHtml(item.spbCode)} • Lembar ${index+1} dari ${total}</div></div>`
       : `<div class="print-head"><div class="print-company">${COMPANY_NAME}</div><div class="print-title">SURAT PEMINDAHAN BARANG</div></div><div class="print-info-row"><div class="print-to"><div class="print-to-label">Kepada</div><div class="print-to-value">${printKepada(item)}</div></div><div class="print-meta-right"><div><b>No LRB</b><span>:</span><span>${escapeHtml(item.noLrb||'-')}</span></div><div><b>No SPB</b><span>:</span><span>${escapeHtml(item.spbCode)}</span></div><div><b>Tanggal</b><span>:</span><span>${formatDate(item.tanggal)}</span></div><div><b>Kategori</b><span>:</span><span>${escapeHtml(item.returCategory||'-')}</span></div><div><b>No PO</b><span>:</span><span>${printNoPo(item)}</span></div></div></div>`;
-    const itemRows=pageItems.map(x=>`<tr class="item-row"><td class="center">${escapeHtml(x.no)}</td><td>${escapeHtml(x.namaBarang)}</td><td>${escapeHtml(x.keterangan||'')}</td>${printQtyCells(x,columns)}</tr>`).join('');
-    const noteRow=isLast?`<tr class="print-note-row"><td colspan="${3+columns.length}"><strong>NOTE</strong><div class="print-note-content">${multilineHtml(item.note||'-')}</div></td></tr>`:'';
+    const itemRows=printSlots.map(x=>x
+      ? `<tr class="item-row"><td class="center">${escapeHtml(x.no)}</td><td><div class="print-item-text">${escapeHtml(x.namaBarang||'')}</div></td><td><div class="print-item-text">${escapeHtml(x.keterangan||'')}</div></td>${printQtyCells(x,columns)}</tr>`
+      : `<tr class="item-row empty-item-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>${columns.map(()=>'<td>&nbsp;</td>').join('')}</tr>`
+    ).join('');
+    const noteRow=isLast?`<tr class="print-note-spacer-row"><td colspan="${3+columns.length}">&nbsp;</td></tr><tr class="print-note-row"><td colspan="${3+columns.length}"><strong>NOTE</strong><div class="print-note-content">${multilineHtml(item.note||'-')}</div></td></tr>`:'';
     const hasPercent=columns.some(([field])=>field==='persen');
     const colgroup=hasPercent
       ? `<colgroup><col style="width:6%"><col style="width:28%"><col style="width:43%"><col style="width:17%"><col style="width:6%"></colgroup>`
