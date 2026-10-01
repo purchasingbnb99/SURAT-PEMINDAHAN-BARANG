@@ -1,4 +1,4 @@
-# SURAT PEMINDAHAN BARANG — V1.0.37
+# SURAT PEMINDAHAN BARANG — V1.0.38
 
 Aplikasi web SPB berbasis HTML/JavaScript + Tailwind CSS + Firebase Authentication + Firestore. Tidak menggunakan Firebase Cloud Storage.
 
@@ -102,3 +102,9 @@ Print continuous form dikalibrasi untuk hasil fisik: area aman kanan diperbesar,
 
 
 V1.0.37: print calibration for physical continuous form, safer right margin, larger readable item text, and larger fixed NOTE area.
+
+
+## V1.0.38 — Continuous Form Print Calibration
+- Removed the extra continuation title/meta block from pages 2+ while retaining the repeated SPB identity block (Kepada, No LRB, No SPB, Tanggal, Kategori, No PO).
+- Narrowed the continuous-form table frame slightly to protect the right print edge and Qty column on physical tractor-feed forms.
+- Kept the fixed 6-item layout, NOTE on the last page only, and signature/footer behavior unchanged.

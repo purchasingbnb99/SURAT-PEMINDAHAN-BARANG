@@ -518,6 +518,8 @@
       min-height:12.5mm!important;
     }
     .continuous-print .print-footer{
+      width:calc(100% - 18mm)!important;
+      margin-right:auto!important;
       margin-top:1.5mm!important;
       padding-top:1.2mm!important;
       font-size:8.5px!important;
@@ -579,7 +581,7 @@
 
 
 
-    /* V1.0.37 — physical continuous-form calibration: safer right edge, safer top, compact fixed rows, stable note/signature */
+    /* V1.0.38 — physical continuous-form calibration: safer table edge and cleaner continuation pages */
     :root{
       --cf-safe-left:8mm;
       --cf-safe-right:20mm;
@@ -627,7 +629,7 @@
     .continuous-print .print-info-row-continuation .print-meta-right{font-size:9.2px!important}
 
     .continuous-print .print-table-frame{
-      width:calc(100% - 12mm)!important;
+      width:calc(100% - 18mm)!important;
       margin-right:auto!important;
       height:var(--cf-table-height)!important;
       min-height:var(--cf-table-height)!important;
@@ -753,7 +755,7 @@
         box-sizing:border-box!important;
       }
       .continuous-print .print-table-frame{
-        width:calc(100% - 12mm)!important;
+        width:calc(100% - 18mm)!important;
         margin-right:auto!important;
         height:84mm!important;
         min-height:84mm!important;
@@ -786,7 +788,7 @@
   <div id="loginRoot" class="login-shell">
     <div class="login-card">
       <div class="login-hero">
-        <div class="badge">SPB • V1.0.37</div>
+        <div class="badge">SPB • V1.0.38</div>
         <div class="hero-title">SURAT<br>PEMINDAHAN BARANG</div>
         <div class="hero-copy">Administrasi SPB yang ringan, terstruktur, dan siap digunakan di desktop maupun HP. Database utama menggunakan Firebase Firestore tanpa Cloud Storage.</div>
         <div class="hero-grid">
