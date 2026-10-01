@@ -307,7 +307,7 @@
       line-height:1.05!important;
     }
     .continuous-print .print-sign{
-      margin-top:2mm!important;
+      margin-top:1mm!important;
     }
     @media print{
       .continuous-print .print-page{
@@ -337,7 +337,7 @@
     /* V1.0.33 — Fixed continuous-form layout: 6 item slots per page; NOTE only on last page */
     :root{
       --cf-table-height:74mm;
-      --cf-item-slot-height:9mm;
+      --cf-item-slot-height:8.6mm;
       --cf-note-spacer-height:4mm;
       --cf-note-fixed-height:11mm;
     }
@@ -362,7 +362,7 @@
       min-height:var(--cf-item-slot-height)!important;
       max-height:var(--cf-item-slot-height)!important;
       padding:0.45mm 3.5px!important;
-      line-height:1!important;
+      line-height:1.05!important;
       vertical-align:top!important;
       overflow:hidden!important;
     }
@@ -385,7 +385,7 @@
       min-height:var(--cf-note-spacer-height)!important;
       padding:0!important;
       border:0!important;
-      line-height:1!important;
+      line-height:1.05!important;
     }
     .continuous-print .print-table tbody tr.print-note-row td{
       height:var(--cf-note-fixed-height)!important;
@@ -409,9 +409,9 @@
       .continuous-print .print-table tbody tr.item-row,
       .continuous-print .print-table tbody tr.item-row td,
       .continuous-print .print-table tbody tr.empty-item-row td{
-        height:9mm!important;
-        min-height:9mm!important;
-        max-height:9mm!important;
+        height:8.6mm!important;
+        min-height:8.6mm!important;
+        max-height:8.6mm!important;
       }
       .continuous-print .print-table tbody tr.print-note-spacer-row td{
         height:4mm!important;
@@ -456,15 +456,15 @@
       line-height:1.05!important;
     }
     .continuous-print .print-table tbody tr.item-row{
-      height:9mm!important;
-      min-height:9mm!important;
-      max-height:9mm!important;
+      height:8.6mm!important;
+      min-height:8.6mm!important;
+      max-height:8.6mm!important;
     }
     .continuous-print .print-table tbody tr.item-row td{
       font-size:10.2px!important;
-      height:9mm!important;
-      min-height:9mm!important;
-      max-height:9mm!important;
+      height:8.6mm!important;
+      min-height:8.6mm!important;
+      max-height:8.6mm!important;
       padding:0.35mm 3.5px!important;
       line-height:1.02!important;
       vertical-align:top!important;
@@ -488,7 +488,7 @@
       min-height:var(--cf-note-spacer-height)!important;
       padding:0!important;
       border:0!important;
-      line-height:1!important;
+      line-height:1.05!important;
     }
     .continuous-print .print-note-row td{
       height:var(--cf-note-fixed-height)!important;
@@ -531,7 +531,7 @@
     }
     .continuous-print .print-cont-company{
       font-size:12px!important;
-      line-height:1!important;
+      line-height:1.05!important;
     }
     .continuous-print .print-cont-title{
       font-size:13px!important;
@@ -562,9 +562,9 @@
       }
       .continuous-print .print-table tbody tr.item-row,
       .continuous-print .print-table tbody tr.item-row td{
-        height:9mm!important;
-        min-height:9mm!important;
-        max-height:9mm!important;
+        height:8.6mm!important;
+        min-height:8.6mm!important;
+        max-height:8.6mm!important;
       }
       .continuous-print .print-table tbody tr.print-note-spacer-row td{
         height:5mm!important;
@@ -579,16 +579,16 @@
 
 
 
-    /* V1.0.35 — physical continuous-form calibration: safe right edge, readable rows, large fixed NOTE */
+    /* V1.0.36 — physical continuous-form calibration: safer right edge, clearer rows, fixed note, balanced signature area */
     :root{
       --cf-safe-left:8mm;
       --cf-safe-right:19mm;
       --cf-safe-top:3mm;
       --cf-safe-bottom:3mm;
-      --cf-table-height:94mm;
-      --cf-item-slot-height:9mm;
+      --cf-table-height:86mm;
+      --cf-item-slot-height:8.2mm;
       --cf-note-spacer-height:4mm;
-      --cf-note-fixed-height:30mm;
+      --cf-note-fixed-height:28mm;
     }
     .continuous-print .print-page{
       width:var(--cf-width)!important;
@@ -627,7 +627,8 @@
     .continuous-print .print-info-row-continuation .print-meta-right{font-size:9.2px!important}
 
     .continuous-print .print-table-frame{
-      width:100%!important;
+      width:calc(100% - 7mm)!important;
+      margin-right:auto!important;
       height:var(--cf-table-height)!important;
       min-height:var(--cf-table-height)!important;
       max-height:var(--cf-table-height)!important;
@@ -638,6 +639,7 @@
     .continuous-print .print-table{
       width:100%!important;
       max-width:100%!important;
+      margin-right:auto!important;
       height:var(--cf-table-height)!important;
       min-height:var(--cf-table-height)!important;
       table-layout:fixed!important;
@@ -657,9 +659,9 @@
       max-height:var(--cf-item-slot-height)!important;
     }
     .continuous-print .print-table tbody tr.item-row td{
-      font-size:10.8px!important;
+      font-size:11.2px!important;
       padding:0.25mm 3.5px!important;
-      line-height:1!important;
+      line-height:1.05!important;
       vertical-align:top!important;
       overflow:hidden!important;
       box-sizing:border-box!important;
@@ -668,20 +670,20 @@
       display:-webkit-box!important;
       -webkit-box-orient:vertical!important;
       -webkit-line-clamp:3!important;
-      height:8.4mm!important;
-      max-height:8.4mm!important;
+      height:8mm!important;
+      max-height:8mm!important;
       overflow:hidden!important;
-      font-size:10.8px!important;
-      line-height:2.75mm!important;
+      font-size:11.2px!important;
+      line-height:2.65mm!important;
       word-break:break-word!important;
       overflow-wrap:anywhere!important;
     }
     .continuous-print .print-qty-stack{gap:0.45mm!important;width:100%!important}
     .continuous-print .print-qty-line{
-      grid-template-columns:minmax(0,1fr) 15mm!important;
-      gap:1.5mm!important;
-      min-height:2.55mm!important;
-      line-height:2.55mm!important;
+      grid-template-columns:minmax(0,1fr) 12mm!important;
+      gap:1mm!important;
+      min-height:2.6mm!important;
+      line-height:2.6mm!important;
     }
     .continuous-print .print-qty-number{font-variant-numeric:tabular-nums;text-align:right!important;white-space:nowrap!important}
     .continuous-print .print-qty-unit{text-align:left!important;white-space:nowrap!important;font-weight:700!important}
@@ -692,7 +694,7 @@
       max-height:var(--cf-note-spacer-height)!important;
       padding:0!important;
       border:0!important;
-      line-height:1!important;
+      line-height:1.05!important;
     }
     .continuous-print .print-note-row td{
       height:var(--cf-note-fixed-height)!important;
@@ -721,15 +723,15 @@
     }
 
     .continuous-print .print-sign{
-      margin-top:2mm!important;
+      margin-top:0.5mm!important;
       padding-top:0!important;
     }
-    .continuous-print .print-sign-box{min-height:12mm!important}
+    .continuous-print .print-sign-box{min-height:10.5mm!important}
     .continuous-print .print-sign-box .role{font-size:8.5px!important;line-height:1.15!important;min-height:4mm!important}
-    .continuous-print .print-sign-box .sig-space{height:4.5mm!important}
+    .continuous-print .print-sign-box .sig-space{height:4mm!important}
     .continuous-print .print-sign-box img{max-width:13mm!important;max-height:4mm!important}
     .continuous-print .print-sign-box .line{width:60%!important}
-    .continuous-print .print-sign-box .name{min-height:3.5mm!important;font-size:8px!important}
+    .continuous-print .print-sign-box .name{min-height:3.5mm!important;font-size:8.5px!important}
     .continuous-print .print-footer{
       margin-top:1.5mm!important;
       padding-top:1mm!important;
@@ -751,17 +753,19 @@
         box-sizing:border-box!important;
       }
       .continuous-print .print-table-frame{
-        height:94mm!important;
-        min-height:94mm!important;
-        max-height:94mm!important;
-        flex-basis:94mm!important;
+        width:calc(100% - 7mm)!important;
+        margin-right:auto!important;
+        height:86mm!important;
+        min-height:86mm!important;
+        max-height:86mm!important;
+        flex-basis:86mm!important;
       }
       .continuous-print .print-table tbody tr.item-row,
       .continuous-print .print-table tbody tr.item-row td,
       .continuous-print .print-table tbody tr.empty-item-row td{
-        height:9mm!important;
-        min-height:9mm!important;
-        max-height:9mm!important;
+        height:8.2mm!important;
+        min-height:8.2mm!important;
+        max-height:8.2mm!important;
       }
       .continuous-print .print-table tbody tr.print-note-spacer-row td{
         height:4mm!important;
@@ -769,18 +773,10 @@
         max-height:4mm!important;
       }
       .continuous-print .print-table tbody tr.print-note-row td{
-        height:30mm!important;
-        min-height:30mm!important;
-        max-height:30mm!important;
+        height:28mm!important;
+        min-height:28mm!important;
+        max-height:28mm!important;
       }
-      .continuous-print .print-table th:nth-child(1),
-      .continuous-print .print-table td:nth-child(1){width:6%!important}
-      .continuous-print .print-table th:nth-child(2),
-      .continuous-print .print-table td:nth-child(2){width:36%!important}
-      .continuous-print .print-table th:nth-child(3),
-      .continuous-print .print-table td:nth-child(3){width:52%!important}
-      .continuous-print .print-table th:nth-child(4),
-      .continuous-print .print-table td:nth-child(4){width:12%!important}
     }
 </style>
 </head>
@@ -790,7 +786,7 @@
   <div id="loginRoot" class="login-shell">
     <div class="login-card">
       <div class="login-hero">
-        <div class="badge">SPB • V1.0.35</div>
+        <div class="badge">SPB • V1.0.36</div>
         <div class="hero-title">SURAT<br>PEMINDAHAN BARANG</div>
         <div class="hero-copy">Administrasi SPB yang ringan, terstruktur, dan siap digunakan di desktop maupun HP. Database utama menggunakan Firebase Firestore tanpa Cloud Storage.</div>
         <div class="hero-grid">

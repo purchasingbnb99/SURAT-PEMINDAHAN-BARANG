@@ -1,4 +1,4 @@
-# SURAT PEMINDAHAN BARANG — V1.0.35
+# SURAT PEMINDAHAN BARANG — V1.0.36
 
 Aplikasi web SPB berbasis HTML/JavaScript + Tailwind CSS + Firebase Authentication + Firestore. Tidak menggunakan Firebase Cloud Storage.
 
@@ -50,7 +50,7 @@ Data SPB lama yang masih memiliki `qtyPcs`, `qtyKg`, `qtyRol`, atau `satuan` dim
 - Saat mode satu PO aktif, No. PO di setiap baris mengikuti No. PO utama dan tidak perlu diketik ulang.
 - Dokumen menyimpan `poMode` dan `sharedNoPo`; item tetap menyimpan `noPo` efektif untuk kompatibilitas laporan/print/import/export.
 
-## V1.0.35 — Cari SPB: Nama Barang + Qty/Satuan
+## V1.0.36 — Cari SPB: Nama Barang + Qty/Satuan
 - Tabel Cari SPB menampilkan kolom Nama Barang dan Qty / Satuan berdampingan.
 - Setiap item menampilkan seluruh Qty/Satuan yang tersimpan, misalnya 620 PCS dan 2 KG.
 - Data lama memakai normalisasi Qty/Satuan yang sama sehingga tetap terbaca.
@@ -60,27 +60,27 @@ Data SPB lama yang masih memiliki `qtyPcs`, `qtyKg`, `qtyRol`, atau `satuan` dim
 Setiap penggunaan TTD otomatis pada Print SPB wajib melalui re-authentication Firebase dengan password Admin. Verifikasi dilakukan setiap kali print, tidak disimpan di localStorage/Firestore, dan aplikasi memeriksa owner UID TTD sebelum digunakan. SPB baru juga menyimpan signatureOwnerUid/signatureOwnerName.
 
 
-V1.0.35: Reordered item inputs (Keterangan → Qty/Satuan → Qty Order → Qty Retur → %), added password-optional printing without automatic signature, enlarged print name column and typography, and established a minimum half-A4 print table area (148.5 mm) that expands when content requires more space.
+V1.0.36: Reordered item inputs (Keterangan → Qty/Satuan → Qty Order → Qty Retur → %), added password-optional printing without automatic signature, enlarged print name column and typography, and established a minimum half-A4 print table area (148.5 mm) that expands when content requires more space.
 
 
-V1.0.35 notes: Detail input order is Keterangan → Qty/Satuan → Qty Order → Qty Retur → %. SPB print supports “Print Tanpa TTD” without password; automatic TTD still requires owner UID plus Firebase password re-authentication. The print table has a 148.5 mm minimum (half of A4 height), with larger typography and a wider Nama Barang column.
+V1.0.36 notes: Detail input order is Keterangan → Qty/Satuan → Qty Order → Qty Retur → %. SPB print supports “Print Tanpa TTD” without password; automatic TTD still requires owner UID plus Firebase password re-authentication. The print table has a 148.5 mm minimum (half of A4 height), with larger typography and a wider Nama Barang column.
 
 
-## Print Continuous Form V1.0.35
+## Print Continuous Form V1.0.36
 Print SPB dirancang untuk continuous form 9.5 x 11 inch yang dibagi dua secara horizontal, sehingga setiap form SPB berukuran 9.5 x 5.5 inch (241.3 x 139.7 mm). Print laporan tetap menggunakan A4 landscape.
 
-## V1.0.35 — Continuous Form SPB
+## V1.0.36 — Continuous Form SPB
 Print SPB menggunakan ukuran fisik 9.5 x 5.5 inch per form, sebagai setengah dari continuous form 9.5 x 11 inch. Dalam satu setengah form: lebar 241.3 mm dan tinggi 139.7 mm. Print laporan tetap menggunakan A4 landscape. Disarankan memilih/menambahkan custom paper size 9.5 x 5.5 inch pada driver printer continuous form bila printer/driver tidak otomatis mengikuti CSS page size.
 
 
-## V1.0.35 — Fixed Print Table
+## V1.0.36 — Fixed Print Table
 - Print SPB continuous form tetap 9.5 x 5.5 inch per form.
 - Tinggi tabel barang dibakukan menjadi 66 mm, sehingga 1, 2, atau beberapa item memakai frame tabel yang sama selama masih berada pada kapasitas satu form.
 - Jika item melebihi kapasitas aman, data dibagi ke lembar lanjutan; font tidak dipaksa mengecil.
 - Tampilan Qty/Satuan dan Note tetap dipertahankan.
 
 
-## V1.0.35 Print Continuous Form
+## V1.0.36 Print Continuous Form
 - Continuous Form SPB tetap 9.5 x 5.5 inch per form.
 - Maksimal 6 item per form; item ke-7 otomatis ke halaman berikutnya.
 - Setiap item memakai slot tinggi baku untuk maksimum 3 baris Nama Barang/Keterangan.
@@ -88,7 +88,7 @@ Print SPB menggunakan ukuran fisik 9.5 x 5.5 inch per form, sebagai setengah dar
 - NOTE hanya tampil pada halaman terakhir dan mempunyai area tetap; ada spacer sebelum NOTE agar tidak menempel pada item terakhir.
 
 
-## V1.0.35 Print Fixed 6 Item Slots
+## V1.0.36 Print Fixed 6 Item Slots
 - Setiap form continuous 9.5 x 5.5 inch memiliki 6 slot item tetap.
 - Item ke-7 pindah ke halaman berikutnya.
 - Slot nama barang dan keterangan dibatasi maksimal 3 baris secara visual agar tinggi item konsisten.
@@ -96,9 +96,9 @@ Print SPB menggunakan ukuran fisik 9.5 x 5.5 inch per form, sebagai setengah dar
 - NOTE dan TTD tetap berada pada posisi yang konsisten pada halaman terakhir.
 
 
-## Catatan V1.0.35
+## Catatan V1.0.36
 
 Print continuous form dikalibrasi untuk hasil fisik: area aman kanan diperbesar, Nama Barang diperjelas, footer waktu cetak diperbesar, metadata lembar lanjutan diperbesar, dan area NOTE diperbesar serta tetap berada hanya pada lembar terakhir. Struktur data dan fitur Firebase tetap dipertahankan.
 
 
-V1.0.35: print calibration for physical continuous form, safer right margin, larger readable item text, and larger fixed NOTE area.
+V1.0.36: print calibration for physical continuous form, safer right margin, larger readable item text, and larger fixed NOTE area.
