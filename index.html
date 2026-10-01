@@ -741,6 +741,12 @@
       line-height:1.1!important;
     }
     .continuous-print .print-footer .print-time{font-size:9px!important}
+    /* V1.0.39 — keep the same company/title header on every continuous-form page.
+       Remove the extra continuation-only title/meta block; pairing metadata remains in the normal info row. */
+    .continuous-print .print-page.continuation .print-company{font-size:15.5px!important;line-height:1!important}
+    .continuous-print .print-page.continuation .print-title{font-size:16.5px!important;line-height:1.02!important;margin-top:1px!important}
+    .continuous-print .print-page.continuation .print-info-row{margin-top:2mm!important;padding-bottom:1mm!important}
+
 
     @media print{
       @page{size:9.5in 5.5in;margin:0!important}
