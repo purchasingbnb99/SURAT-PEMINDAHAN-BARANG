@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.34';
+const APP_VERSION = '1.0.35';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -1197,7 +1197,7 @@ async function requestProtectedSpbPrint(item){
 function printSpbById(id){return requestProtectedSpbPrintById(id);}
 function printSpb(item,{signatureData=null}={}) {
   if(!item)return;
-  const pages=paginateItems(item.items||[],6.4); const total=pages.length; const columns=printColumnsForItems(item.items||[]); let html='';
+  const pages=paginateItems(item.items||[],6); const total=pages.length; const columns=printColumnsForItems(item.items||[]); let html='';
   pages.forEach((pageItems,index)=>{
     const continuation=index>0; const isLast=index===total-1; const printTimestamp=formatPrintTimestamp();
     const printSlots=padPrintItemSlots(pageItems,6);

@@ -577,6 +577,211 @@
       }
     }
 
+
+
+    /* V1.0.35 — physical continuous-form calibration: safe right edge, readable rows, large fixed NOTE */
+    :root{
+      --cf-safe-left:8mm;
+      --cf-safe-right:19mm;
+      --cf-safe-top:3mm;
+      --cf-safe-bottom:3mm;
+      --cf-table-height:94mm;
+      --cf-item-slot-height:9mm;
+      --cf-note-spacer-height:4mm;
+      --cf-note-fixed-height:30mm;
+    }
+    .continuous-print .print-page{
+      width:var(--cf-width)!important;
+      height:var(--cf-height)!important;
+      min-height:var(--cf-height)!important;
+      max-height:var(--cf-height)!important;
+      padding:var(--cf-safe-top) var(--cf-safe-right) var(--cf-safe-bottom) var(--cf-safe-left)!important;
+      box-sizing:border-box!important;
+      overflow:hidden!important;
+    }
+    .continuous-print .print-head{
+      margin:0!important;
+      padding:0!important;
+    }
+    .continuous-print .print-company{font-size:15.5px!important;line-height:1!important}
+    .continuous-print .print-title{font-size:16.5px!important;line-height:1.02!important;margin-top:1px!important}
+    .continuous-print .print-info-row{
+      margin-top:2mm!important;
+      padding-bottom:1mm!important;
+    }
+    .continuous-print .print-to-label{font-size:9.5px!important}
+    .continuous-print .print-to-value{font-size:10.2px!important;line-height:1.25!important}
+    .continuous-print .print-meta-right{font-size:9.2px!important;line-height:1.28!important}
+    .continuous-print .print-meta-right div{grid-template-columns:48px 7px minmax(0,1fr)!important;gap:1.5px!important}
+
+    .continuous-print .print-continuation-head{
+      margin:0 0 1.5mm!important;
+      padding:0!important;
+      text-align:center!important;
+    }
+    .continuous-print .print-cont-company{font-size:13px!important;line-height:1!important}
+    .continuous-print .print-cont-title{font-size:14px!important;line-height:1.03!important;margin-top:1px!important}
+    .continuous-print .print-cont-meta{font-size:10px!important;line-height:1.15!important;margin-top:2px!important}
+    .continuous-print .print-info-row-continuation{margin-top:1mm!important;padding-bottom:1mm!important}
+    .continuous-print .print-info-row-continuation .print-to-value{font-size:9.8px!important}
+    .continuous-print .print-info-row-continuation .print-meta-right{font-size:9.2px!important}
+
+    .continuous-print .print-table-frame{
+      width:100%!important;
+      height:var(--cf-table-height)!important;
+      min-height:var(--cf-table-height)!important;
+      max-height:var(--cf-table-height)!important;
+      flex:0 0 var(--cf-table-height)!important;
+      box-sizing:border-box!important;
+      overflow:hidden!important;
+    }
+    .continuous-print .print-table{
+      width:100%!important;
+      max-width:100%!important;
+      height:var(--cf-table-height)!important;
+      min-height:var(--cf-table-height)!important;
+      table-layout:fixed!important;
+      border-collapse:collapse!important;
+    }
+    .continuous-print .print-table thead th{
+      font-size:10px!important;
+      padding:2.4px 3.5px!important;
+      line-height:1.05!important;
+      vertical-align:middle!important;
+    }
+    .continuous-print .print-table tbody tr.item-row,
+    .continuous-print .print-table tbody tr.item-row td,
+    .continuous-print .print-table tbody tr.empty-item-row td{
+      height:var(--cf-item-slot-height)!important;
+      min-height:var(--cf-item-slot-height)!important;
+      max-height:var(--cf-item-slot-height)!important;
+    }
+    .continuous-print .print-table tbody tr.item-row td{
+      font-size:10.8px!important;
+      padding:0.25mm 3.5px!important;
+      line-height:1!important;
+      vertical-align:top!important;
+      overflow:hidden!important;
+      box-sizing:border-box!important;
+    }
+    .continuous-print .print-item-text{
+      display:-webkit-box!important;
+      -webkit-box-orient:vertical!important;
+      -webkit-line-clamp:3!important;
+      height:8.4mm!important;
+      max-height:8.4mm!important;
+      overflow:hidden!important;
+      font-size:10.8px!important;
+      line-height:2.75mm!important;
+      word-break:break-word!important;
+      overflow-wrap:anywhere!important;
+    }
+    .continuous-print .print-qty-stack{gap:0.45mm!important;width:100%!important}
+    .continuous-print .print-qty-line{
+      grid-template-columns:minmax(0,1fr) 15mm!important;
+      gap:1.5mm!important;
+      min-height:2.55mm!important;
+      line-height:2.55mm!important;
+    }
+    .continuous-print .print-qty-number{font-variant-numeric:tabular-nums;text-align:right!important;white-space:nowrap!important}
+    .continuous-print .print-qty-unit{text-align:left!important;white-space:nowrap!important;font-weight:700!important}
+
+    .continuous-print .print-note-spacer-row td{
+      height:var(--cf-note-spacer-height)!important;
+      min-height:var(--cf-note-spacer-height)!important;
+      max-height:var(--cf-note-spacer-height)!important;
+      padding:0!important;
+      border:0!important;
+      line-height:1!important;
+    }
+    .continuous-print .print-note-row td{
+      height:var(--cf-note-fixed-height)!important;
+      min-height:var(--cf-note-fixed-height)!important;
+      max-height:var(--cf-note-fixed-height)!important;
+      padding:3mm 5mm!important;
+      border:1px solid #111!important;
+      vertical-align:top!important;
+      overflow:hidden!important;
+      box-sizing:border-box!important;
+    }
+    .continuous-print .print-note-row strong{
+      display:block!important;
+      font-size:10px!important;
+      line-height:1.1!important;
+      margin-bottom:2mm!important;
+    }
+    .continuous-print .print-note-content{
+      font-size:10px!important;
+      line-height:3mm!important;
+      max-height:23mm!important;
+      height:auto!important;
+      overflow:hidden!important;
+      white-space:normal!important;
+      overflow-wrap:anywhere!important;
+    }
+
+    .continuous-print .print-sign{
+      margin-top:2mm!important;
+      padding-top:0!important;
+    }
+    .continuous-print .print-sign-box{min-height:12mm!important}
+    .continuous-print .print-sign-box .role{font-size:8.5px!important;line-height:1.15!important;min-height:4mm!important}
+    .continuous-print .print-sign-box .sig-space{height:4.5mm!important}
+    .continuous-print .print-sign-box img{max-width:13mm!important;max-height:4mm!important}
+    .continuous-print .print-sign-box .line{width:60%!important}
+    .continuous-print .print-sign-box .name{min-height:3.5mm!important;font-size:8px!important}
+    .continuous-print .print-footer{
+      margin-top:1.5mm!important;
+      padding-top:1mm!important;
+      font-size:9px!important;
+      line-height:1.1!important;
+    }
+    .continuous-print .print-footer .print-time{font-size:9px!important}
+
+    @media print{
+      @page{size:9.5in 5.5in;margin:0!important}
+      .continuous-print .print-page{
+        width:241.3mm!important;
+        height:139.7mm!important;
+        min-height:139.7mm!important;
+        max-height:139.7mm!important;
+        padding:3mm 19mm 3mm 8mm!important;
+        margin:0!important;
+        overflow:hidden!important;
+        box-sizing:border-box!important;
+      }
+      .continuous-print .print-table-frame{
+        height:94mm!important;
+        min-height:94mm!important;
+        max-height:94mm!important;
+        flex-basis:94mm!important;
+      }
+      .continuous-print .print-table tbody tr.item-row,
+      .continuous-print .print-table tbody tr.item-row td,
+      .continuous-print .print-table tbody tr.empty-item-row td{
+        height:9mm!important;
+        min-height:9mm!important;
+        max-height:9mm!important;
+      }
+      .continuous-print .print-table tbody tr.print-note-spacer-row td{
+        height:4mm!important;
+        min-height:4mm!important;
+        max-height:4mm!important;
+      }
+      .continuous-print .print-table tbody tr.print-note-row td{
+        height:30mm!important;
+        min-height:30mm!important;
+        max-height:30mm!important;
+      }
+      .continuous-print .print-table th:nth-child(1),
+      .continuous-print .print-table td:nth-child(1){width:6%!important}
+      .continuous-print .print-table th:nth-child(2),
+      .continuous-print .print-table td:nth-child(2){width:36%!important}
+      .continuous-print .print-table th:nth-child(3),
+      .continuous-print .print-table td:nth-child(3){width:52%!important}
+      .continuous-print .print-table th:nth-child(4),
+      .continuous-print .print-table td:nth-child(4){width:12%!important}
+    }
 </style>
 </head>
 <body>
@@ -585,7 +790,7 @@
   <div id="loginRoot" class="login-shell">
     <div class="login-card">
       <div class="login-hero">
-        <div class="badge">SPB • V1.0.30</div>
+        <div class="badge">SPB • V1.0.35</div>
         <div class="hero-title">SURAT<br>PEMINDAHAN BARANG</div>
         <div class="hero-copy">Administrasi SPB yang ringan, terstruktur, dan siap digunakan di desktop maupun HP. Database utama menggunakan Firebase Firestore tanpa Cloud Storage.</div>
         <div class="hero-grid">
