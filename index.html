@@ -579,14 +579,14 @@
 
 
 
-    /* V1.0.36 — physical continuous-form calibration: safer right edge, clearer rows, fixed note, balanced signature area */
+    /* V1.0.37 — physical continuous-form calibration: safer right edge, safer top, compact fixed rows, stable note/signature */
     :root{
       --cf-safe-left:8mm;
-      --cf-safe-right:19mm;
-      --cf-safe-top:3mm;
+      --cf-safe-right:20mm;
+      --cf-safe-top:7.5mm;
       --cf-safe-bottom:3mm;
-      --cf-table-height:86mm;
-      --cf-item-slot-height:8.2mm;
+      --cf-table-height:84mm;
+      --cf-item-slot-height:8mm;
       --cf-note-spacer-height:4mm;
       --cf-note-fixed-height:28mm;
     }
@@ -627,7 +627,7 @@
     .continuous-print .print-info-row-continuation .print-meta-right{font-size:9.2px!important}
 
     .continuous-print .print-table-frame{
-      width:calc(100% - 7mm)!important;
+      width:calc(100% - 12mm)!important;
       margin-right:auto!important;
       height:var(--cf-table-height)!important;
       min-height:var(--cf-table-height)!important;
@@ -747,25 +747,25 @@
         height:139.7mm!important;
         min-height:139.7mm!important;
         max-height:139.7mm!important;
-        padding:3mm 19mm 3mm 8mm!important;
+        padding:7.5mm 20mm 3mm 8mm!important;
         margin:0!important;
         overflow:hidden!important;
         box-sizing:border-box!important;
       }
       .continuous-print .print-table-frame{
-        width:calc(100% - 7mm)!important;
+        width:calc(100% - 12mm)!important;
         margin-right:auto!important;
-        height:86mm!important;
-        min-height:86mm!important;
-        max-height:86mm!important;
-        flex-basis:86mm!important;
+        height:84mm!important;
+        min-height:84mm!important;
+        max-height:84mm!important;
+        flex-basis:84mm!important;
       }
       .continuous-print .print-table tbody tr.item-row,
       .continuous-print .print-table tbody tr.item-row td,
       .continuous-print .print-table tbody tr.empty-item-row td{
-        height:8.2mm!important;
-        min-height:8.2mm!important;
-        max-height:8.2mm!important;
+        height:8mm!important;
+        min-height:8mm!important;
+        max-height:8mm!important;
       }
       .continuous-print .print-table tbody tr.print-note-spacer-row td{
         height:4mm!important;
@@ -786,7 +786,7 @@
   <div id="loginRoot" class="login-shell">
     <div class="login-card">
       <div class="login-hero">
-        <div class="badge">SPB • V1.0.36</div>
+        <div class="badge">SPB • V1.0.37</div>
         <div class="hero-title">SURAT<br>PEMINDAHAN BARANG</div>
         <div class="hero-copy">Administrasi SPB yang ringan, terstruktur, dan siap digunakan di desktop maupun HP. Database utama menggunakan Firebase Firestore tanpa Cloud Storage.</div>
         <div class="hero-grid">
