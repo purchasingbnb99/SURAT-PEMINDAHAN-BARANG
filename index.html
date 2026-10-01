@@ -423,6 +423,160 @@
       }
     }
 
+
+    /* V1.0.34 — print calibration for physical continuous-form output */
+    :root{
+      --cf-safe-left:7mm;
+      --cf-safe-right:13mm;
+      --cf-safe-top:10mm;
+      --cf-safe-bottom:3mm;
+      --cf-table-height:82mm;
+      --cf-note-spacer-height:5mm;
+      --cf-note-fixed-height:20mm;
+    }
+    .continuous-print .print-page{
+      padding:var(--cf-safe-top) var(--cf-safe-right) var(--cf-safe-bottom) var(--cf-safe-left)!important;
+      box-sizing:border-box!important;
+    }
+    .continuous-print .print-table-frame{
+      height:var(--cf-table-height)!important;
+      min-height:var(--cf-table-height)!important;
+      flex:0 0 var(--cf-table-height)!important;
+      overflow:hidden!important;
+    }
+    .continuous-print .print-table{
+      width:100%!important;
+      max-width:100%!important;
+      table-layout:fixed!important;
+      border-collapse:collapse!important;
+    }
+    .continuous-print .print-table thead th{
+      font-size:10px!important;
+      padding:2.8px 3.5px!important;
+      line-height:1.05!important;
+    }
+    .continuous-print .print-table tbody tr.item-row{
+      height:9mm!important;
+      min-height:9mm!important;
+      max-height:9mm!important;
+    }
+    .continuous-print .print-table tbody tr.item-row td{
+      font-size:10.2px!important;
+      height:9mm!important;
+      min-height:9mm!important;
+      max-height:9mm!important;
+      padding:0.35mm 3.5px!important;
+      line-height:1.02!important;
+      vertical-align:top!important;
+      overflow:hidden!important;
+    }
+    .continuous-print .print-item-text{
+      font-size:10.2px!important;
+      line-height:2.35mm!important;
+      height:7.25mm!important;
+      max-height:7.25mm!important;
+      overflow:hidden!important;
+      word-break:break-word!important;
+      overflow-wrap:anywhere!important;
+    }
+    .continuous-print .print-qty-line{
+      line-height:2.25mm!important;
+      min-height:2.25mm!important;
+    }
+    .continuous-print .print-note-spacer-row td{
+      height:var(--cf-note-spacer-height)!important;
+      min-height:var(--cf-note-spacer-height)!important;
+      padding:0!important;
+      border:0!important;
+      line-height:1!important;
+    }
+    .continuous-print .print-note-row td{
+      height:var(--cf-note-fixed-height)!important;
+      min-height:var(--cf-note-fixed-height)!important;
+      padding:3.5px 5px!important;
+      border:1px solid #111!important;
+      vertical-align:top!important;
+      overflow:hidden!important;
+    }
+    .continuous-print .print-note-row strong{
+      font-size:9.5px!important;
+      line-height:1.1!important;
+      margin-bottom:2.5px!important;
+    }
+    .continuous-print .print-note-content{
+      font-size:9.7px!important;
+      line-height:2.45mm!important;
+      max-height:15.5mm!important;
+      overflow:hidden!important;
+      white-space:normal!important;
+      overflow-wrap:anywhere!important;
+    }
+    .continuous-print .print-sign{
+      margin-top:2.2mm!important;
+    }
+    .continuous-print .print-sign-box{
+      min-height:12.5mm!important;
+    }
+    .continuous-print .print-footer{
+      margin-top:1.5mm!important;
+      padding-top:1.2mm!important;
+      font-size:8.5px!important;
+      line-height:1.1!important;
+    }
+    .continuous-print .print-footer .print-time{
+      font-size:8.5px!important;
+    }
+    .continuous-print .print-continuation-head{
+      margin-bottom:2mm!important;
+    }
+    .continuous-print .print-cont-company{
+      font-size:12px!important;
+      line-height:1!important;
+    }
+    .continuous-print .print-cont-title{
+      font-size:13px!important;
+      line-height:1.04!important;
+      margin-top:1px!important;
+    }
+    .continuous-print .print-cont-meta{
+      font-size:9.5px!important;
+      line-height:1.15!important;
+      margin-top:3px!important;
+    }
+    @media print{
+      @page{size:9.5in 5.5in;margin:0!important}
+      .continuous-print .print-page{
+        width:241.3mm!important;
+        height:139.7mm!important;
+        min-height:139.7mm!important;
+        max-height:139.7mm!important;
+        padding:10mm 13mm 3mm 7mm!important;
+        margin:0!important;
+        overflow:hidden!important;
+        box-sizing:border-box!important;
+      }
+      .continuous-print .print-table-frame{
+        height:82mm!important;
+        min-height:82mm!important;
+        max-height:82mm!important;
+      }
+      .continuous-print .print-table tbody tr.item-row,
+      .continuous-print .print-table tbody tr.item-row td{
+        height:9mm!important;
+        min-height:9mm!important;
+        max-height:9mm!important;
+      }
+      .continuous-print .print-table tbody tr.print-note-spacer-row td{
+        height:5mm!important;
+        min-height:5mm!important;
+      }
+      .continuous-print .print-table tbody tr.print-note-row td{
+        height:20mm!important;
+        min-height:20mm!important;
+        max-height:20mm!important;
+      }
+    }
+
 </style>
 </head>
 <body>

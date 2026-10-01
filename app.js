@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.33';
+const APP_VERSION = '1.0.34';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -1211,8 +1211,8 @@ function printSpb(item,{signatureData=null}={}) {
     const noteRow=isLast?`<tr class="print-note-spacer-row"><td colspan="${3+columns.length}">&nbsp;</td></tr><tr class="print-note-row"><td colspan="${3+columns.length}"><strong>NOTE</strong><div class="print-note-content">${multilineHtml(item.note||'-')}</div></td></tr>`:'';
     const hasPercent=columns.some(([field])=>field==='persen');
     const colgroup=hasPercent
-      ? `<colgroup><col style="width:6%"><col style="width:28%"><col style="width:43%"><col style="width:17%"><col style="width:6%"></colgroup>`
-      : `<colgroup><col style="width:6%"><col style="width:30%"><col style="width:48%"><col style="width:16%"></colgroup>`;
+      ? `<colgroup><col style="width:6%"><col style="width:34%"><col style="width:38%"><col style="width:16%"><col style="width:6%"></colgroup>`
+      : `<colgroup><col style="width:6%"><col style="width:34%"><col style="width:42%"><col style="width:18%"></colgroup>`;
     const table=`<div class="print-table-frame"><table class="print-table">${colgroup}<thead><tr><th>No</th><th>Nama Barang</th><th>Keterangan</th>${printQtyHeaders(columns)}</tr></thead><tbody>${itemRows}${noteRow}</tbody></table></div>`;
     html+=`<div class="print-page ${continuation?'continuation':''}">${header}${table}${isLast?`<div class="print-sign"><div class="print-sign-box"><div class="role">DIBUAT</div><div class="sig-space">${signatureData?`<img src="${escapeHtml(signatureData)}" alt="TTD Admin">`:''}</div><div class="line"></div><div class="name">${escapeHtml(item.createdByName||'')}</div></div><div class="print-sign-box"><div class="role">DISETUJUI</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">GUDANG / INVENTORY</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">PENERIMA</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div></div>`:''}<div class="print-footer"><span class="print-time">Dicetak: ${escapeHtml(printTimestamp)}</span><span>Lembar ${index+1} dari ${total}</span></div></div>`;
   });
