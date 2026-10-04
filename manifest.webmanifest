@@ -1,0 +1,25 @@
+{
+  "name": "SURAT PEMINDAHAN BARANG",
+  "short_name": "SPB",
+  "description": "Administrasi Surat Pemindahan Barang — PT. BEST & BEST INDONESIA.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f9fc",
+  "theme_color": "#0f172a",
+  "lang": "id-ID",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

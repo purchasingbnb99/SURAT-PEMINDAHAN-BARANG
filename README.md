@@ -131,3 +131,9 @@ The verified `signatureSnapshotData` stored in Firestore is used directly for Pr
 - Reworked Activity/Audit Log rendering to avoid deeply nested template literals that can be fragile in some browser-served copies.
 - Added `app.js?v=1044` cache-busting to ensure the browser does not reuse an older `app.js`.
 - No database schema changes.
+
+
+## V1.0.46
+- Aktivitas Sistem: filter tanggal, pengguna, aksi, pencarian detail, dan Export CSV.
+- PWA: manifest + service worker untuk instalasi sebagai aplikasi di perangkat yang mendukung.
+- Layout Print Continuous Form tidak diubah pada versi ini.

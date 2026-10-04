@@ -30,7 +30,7 @@ import {
   Timestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.45';
+const APP_VERSION = '1.0.46';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -73,7 +73,9 @@ const state = {
   formPoMode: 'single',
   formSharedPo: '',
   activityRows: [],
-  backupBusy: false
+  activityFilters: { start:'', end:'', user:'', action:'all', term:'' },
+  backupBusy: false,
+  deferredInstallPrompt: null
 };
 
 const $ = (id) => document.getElementById(id);
@@ -363,35 +365,70 @@ async function restoreFullBackup(file){
     await preloadReferenceData();await loadRecentSPBs(5000);void logActivity('backup_restore','system','','Restore '+todayISO(),{documents:docs.length});showToast('Restore selesai: '+done+' dokumen diproses.');navigate('dashboard');
   }catch(err){console.error(err);showToast(firebaseError(err),'error');}
 }
+function activityDateOnly(value){
+  const d=value?.toDate?value.toDate():new Date(value);
+  if(Number.isNaN(d.getTime()))return '';
+  const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
+  const get=k=>p.find(x=>x.type===k)?.value||'';
+  return get('year')+'-'+get('month')+'-'+get('day');
+}
+function activityDetailText(x){
+  const detailObj=(x.details&&typeof x.details==='object')?x.details:{};
+  return Object.entries(detailObj).map(function(pair){
+    const key=pair[0],val=pair[1];
+    return key+': '+(val&&typeof val==='object'?JSON.stringify(val):String(val));
+  }).join(' | ');
+}
+function filteredActivityRows(){
+  const f=state.activityFilters;
+  const term=normalized(f.term);
+  return state.activityRows.filter(function(x){
+    const day=activityDateOnly(x.at);
+    const userOk=!f.user||normalized(x.actorName||'').includes(normalized(f.user));
+    const actionOk=f.action==='all'||String(x.action||'')===f.action;
+    const dateOk=(!f.start||!day||day>=f.start)&&(!f.end||!day||day<=f.end);
+    const textOk=!term||[x.actorName,x.actorRole,x.action,x.targetLabel,x.targetId,activityDetailText(x)].some(v=>normalized(v).includes(term));
+    return userOk&&actionOk&&dateOk&&textOk;
+  });
+}
+function csvCell(value){return '"'+String(value??'').replace(/"/g,'""')+'"';}
+function exportActivityCsv(){
+  const rows=filteredActivityRows();
+  const header=['Waktu','Pengguna','Role','Aksi','Target','Detail'];
+  const lines=[header.map(csvCell).join(',')].concat(rows.map(function(x){return [formatDateTime(x.at),x.actorName||'',x.actorRole||'',x.action||'',x.targetLabel||x.targetId||'',activityDetailText(x)].map(csvCell).join(',');}));
+  const bom='\ufeff';
+  downloadBlob(new Blob([bom+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}),'Aktivitas-SPB-'+todayISO()+'.csv');
+  void logActivity('activity_export','activity','',`Export ${rows.length} aktivitas`,{count:rows.length});
+  showToast('Aktivitas berhasil diekspor: '+rows.length+' baris.');
+}
 async function renderActivityView(){
   const t=$('view-activity');
   if(!t)return;
-  t.innerHTML='<div class="card card-pad"><div class="section-head"><div><div class="card-title">Aktivitas Sistem</div><div class="card-sub">Jejak login, SPB, print, import/export, master, dan backup.</div></div><button id="refreshActivityBtn" class="btn btn-secondary" type="button">Refresh</button></div><div id="activityList"><div class="empty">Memuat aktivitas...</div></div></div>';
+  t.innerHTML='<div class="card card-pad"><div class="section-head"><div><div class="card-title">Aktivitas Sistem</div><div class="card-sub">Jejak login, SPB, print, import/export, master, dan backup.</div></div><div class="section-actions"><button id="exportActivityBtn" class="btn btn-secondary" type="button">Export CSV</button><button id="refreshActivityBtn" class="btn btn-secondary" type="button">Refresh</button></div></div><div class="form-grid" style="margin-top:4px"><div class="field"><label>Dari</label><input id="activityStart" class="input" type="date"></div><div class="field"><label>Sampai</label><input id="activityEnd" class="input" type="date"></div><div class="field"><label>Pengguna</label><input id="activityUser" class="input" placeholder="Nama pengguna"></div><div class="field"><label>Aksi</label><select id="activityAction" class="select"><option value="all">Semua aksi</option></select></div></div><div class="search-bar" style="margin-top:12px"><input id="activityTerm" class="input" placeholder="Cari target, detail, pengguna, atau aksi"><button id="activityResetBtn" class="btn btn-soft" type="button">Reset Filter</button></div><div id="activitySummary" class="small-help" style="margin-top:10px"></div><div id="activityList" style="margin-top:8px"><div class="empty">Memuat aktivitas...</div></div></div>';
   const refresh=$('refreshActivityBtn');
   if(refresh)refresh.addEventListener('click',renderActivityView);
+  const exportBtn=$('exportActivityBtn');
+  if(exportBtn)exportBtn.addEventListener('click',exportActivityCsv);
   try{
-    const snap=await getDocs(query(collection(db,'auditLogs'),orderBy('at','desc'),limit(200)));
-    const rows=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
-    state.activityRows=rows;
-    const list=$('activityList');
-    if(!list)return;
-    if(!rows.length){list.innerHTML='<div class="empty">Belum ada aktivitas tercatat.</div>';return;}
-    const body=rows.map(function(x){
-      const detailObj=(x.details&&typeof x.details==='object')?x.details:{};
-      const detailParts=Object.entries(detailObj).map(function(pair){
-        const key=pair[0], val=pair[1];
-        return key+': '+(val&&typeof val==='object'?JSON.stringify(val):String(val));
-      });
-      const detail=detailParts.join(' | ');
-      return '<tr>'+
-        '<td>'+escapeHtml(formatDateTime(x.at))+'</td>'+
-        '<td><strong>'+escapeHtml(x.actorName||'-')+'</strong><div class="small-help">'+escapeHtml(x.actorRole||'')+'</div></td>'+
-        '<td><span class="pill type-pill">'+escapeHtml(x.action||'-')+'</span></td>'+
-        '<td>'+escapeHtml(x.targetLabel||x.targetId||'-')+'</td>'+
-        '<td class="small-help">'+escapeHtml(detail)+'</td>'+
-      '</tr>';
-    }).join('');
-    list.innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Target</th><th>Detail</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+    const snap=await getDocs(query(collection(db,'auditLogs'),orderBy('at','desc'),limit(500)));
+    state.activityRows=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    const actions=[...new Set(state.activityRows.map(x=>String(x.action||'').trim()).filter(Boolean))].sort();
+    $('activityAction').innerHTML='<option value="all">Semua aksi</option>'+actions.map(x=>'<option value="'+escapeHtml(x)+'">'+escapeHtml(x)+'</option>').join('');
+    const f=state.activityFilters;
+    $('activityStart').value=f.start;$('activityEnd').value=f.end;$('activityUser').value=f.user;$('activityTerm').value=f.term;$('activityAction').value=actions.includes(f.action)?f.action:'all';
+    const rerender=()=>{
+      state.activityFilters={start:$('activityStart').value,end:$('activityEnd').value,user:$('activityUser').value.trim(),action:$('activityAction').value,term:$('activityTerm').value.trim()};
+      const rows=filteredActivityRows();
+      $('activitySummary').textContent=rows.length+' aktivitas dari '+state.activityRows.length+' yang dimuat.';
+      const list=$('activityList');
+      if(!list)return;
+      if(!rows.length){list.innerHTML='<div class="empty">Tidak ada aktivitas yang sesuai filter.</div>';return;}
+      const body=rows.map(function(x){return '<tr><td>'+escapeHtml(formatDateTime(x.at))+'</td><td><strong>'+escapeHtml(x.actorName||'-')+'</strong><div class="small-help">'+escapeHtml(x.actorRole||'')+'</div></td><td><span class="pill type-pill">'+escapeHtml(x.action||'-')+'</span></td><td>'+escapeHtml(x.targetLabel||x.targetId||'-')+'</td><td class="small-help">'+escapeHtml(activityDetailText(x))+'</td></tr>';}).join('');
+      list.innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Target</th><th>Detail</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+    };
+    ['activityStart','activityEnd','activityUser','activityTerm','activityAction'].forEach(function(id){$(id).addEventListener(id==='activityAction'?'change':'input',rerender);});
+    $('activityResetBtn').addEventListener('click',function(){state.activityFilters={start:'',end:'',user:'',action:'all',term:''};renderActivityView();});
+    rerender();
   }catch(err){
     console.error(err);
     const list=$('activityList');
@@ -1589,9 +1626,15 @@ function bindGlobalEvents(){
   $('adminLoginForm').addEventListener('submit',e=>{e.preventDefault();doAdminLogin($('adminEmail').value,$('adminPassword').value,$('adminLoginBtn'));});
   $('staffLoginForm').addEventListener('submit',e=>{e.preventDefault();doStaffLogin($('staffName').value,$('staffLoginBtn'));});
   $('logoutBtn').addEventListener('click',logout); $('openDrawer').addEventListener('click',openDrawer);
+  $('pwaInstallBtn')?.addEventListener('click',async()=>{const prompt=state.deferredInstallPrompt;if(!prompt)return;$('pwaInstallBtn').classList.add('hidden');try{await prompt.prompt();await prompt.userChoice;}catch(err){console.warn('PWA install prompt gagal:',err);}finally{state.deferredInstallPrompt=null;}});
   $('configWarning').classList.toggle('hidden',FIREBASE_READY); if(!FIREBASE_READY){$('adminLoginBtn').disabled=true;$('staffLoginBtn').disabled=true;}
 }
 
 bindGlobalEvents(); renderNavigation();
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();state.deferredInstallPrompt=event;$('pwaInstallBtn')?.classList.remove('hidden');});
+window.addEventListener('appinstalled',()=>{state.deferredInstallPrompt=null;$('pwaInstallBtn')?.classList.add('hidden');void logActivity('pwa_installed','system','','PWA SPB dipasang',{});showToast('SPB berhasil dipasang sebagai aplikasi.');});
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=1046').catch(err=>console.warn('PWA service worker tidak aktif:',err)));
+}
 if(FIREBASE_READY){onAuthStateChanged(auth,user=>handleAuth(user).catch(err=>{console.error(err);showToast(firebaseError(err),'error');}));}
 else showToast('Isi firebase-config.js terlebih dahulu.','warning');
