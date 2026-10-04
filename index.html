@@ -819,6 +819,25 @@
       }
       .continuous-print .print-sign-box{min-height:13mm!important}
     }
+
+    /* V1.0.42 — Print confirmation modal: compact, proportional, and not dismissible by outside click */
+    .modal.modal-confirm-print{
+      width:min(680px,calc(100vw - 32px));
+      max-height:min(82vh,620px);
+      border-radius:18px;
+    }
+    .modal.modal-confirm-print .modal-head{padding:16px 18px}
+    .modal.modal-confirm-print .modal-body{padding:16px 18px;gap:12px!important}
+    .modal.modal-confirm-print .modal-foot{padding:13px 18px}
+    .modal.modal-confirm-print .alert{padding:11px 13px}
+    .modal.modal-confirm-print .field{gap:6px}
+    .modal.modal-confirm-print .input{padding:10px 12px}
+    .modal.modal-confirm-print .btn{padding:9px 12px}
+    @media (max-width:640px){
+      .modal.modal-confirm-print{width:calc(100vw - 24px);max-height:84vh;border-radius:16px}
+      .modal.modal-confirm-print .modal-head{padding:14px 15px}
+      .modal.modal-confirm-print .modal-body{padding:14px 15px}
+    }
 </style>
 </head>
 <body>
@@ -827,7 +846,7 @@
   <div id="loginRoot" class="login-shell">
     <div class="login-card">
       <div class="login-hero">
-        <div class="badge">SPB • V1.0.41</div>
+        <div class="badge">SPB • V1.0.42</div>
         <div class="hero-title">SURAT<br>PEMINDAHAN BARANG</div>
         <div class="hero-copy">Administrasi SPB yang ringan, terstruktur, dan siap digunakan di desktop maupun HP. Database utama menggunakan Firebase Firestore tanpa Cloud Storage.</div>
         <div class="hero-grid">

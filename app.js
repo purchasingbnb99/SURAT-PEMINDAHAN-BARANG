@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.41';
+const APP_VERSION = '1.0.42';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -161,7 +161,7 @@ function categoryBadge(cat) {
 function closeDrawer() { $('sidebar')?.classList.remove('open'); }
 function openDrawer() { $('sidebar')?.classList.add('open'); }
 function closeModal() { $('modalRoot').innerHTML=''; $('modalRoot').classList.add('hidden'); }
-function openModal(html) { $('modalRoot').innerHTML = `<div class="modal-backdrop" data-modal-backdrop><div class="modal">${html}</div></div>`; $('modalRoot').classList.remove('hidden'); $('modalRoot').querySelector('[data-modal-backdrop]')?.addEventListener('click',e=>{if(e.target.dataset.modalBackdrop!==undefined)closeModal();}); }
+function openModal(html, options={}) { const {dismissOnBackdrop=true, modalClass=''}=options; $('modalRoot').innerHTML = `<div class="modal-backdrop" data-modal-backdrop><div class="modal ${modalClass}">${html}</div></div>`; $('modalRoot').classList.remove('hidden'); if(dismissOnBackdrop){ $('modalRoot').querySelector('[data-modal-backdrop]')?.addEventListener('click',e=>{if(e.target.dataset.modalBackdrop!==undefined)closeModal();}); } }
 function chunkText(value,max) {
   const text = String(value ?? '');
   return text.length <= max ? text : `${text.slice(0,max-1)}…`;
@@ -1157,7 +1157,7 @@ async function verifyAutomaticSignatureAccess(item, onVerified){
         <div class="field"><label for="ttdConfirmPassword">Password Admin untuk TTD Otomatis *</label><input id="ttdConfirmPassword" type="password" class="input" autocomplete="current-password" required></div>
         <button id="ttdConfirmBtn" class="btn btn-primary" type="submit">Gunakan TTD & Print</button>
       </form>`:`<div class="small-help">Akun yang sedang login bukan pemilik TTD ini. Untuk keamanan, hanya opsi Print Tanpa TTD yang tersedia.</div>`}
-    </div>`);
+    </div>`, {dismissOnBackdrop:false, modalClass:'modal-confirm-print'});
   $('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
   $('printWithoutSignatureBtn').addEventListener('click',async()=>{closeModal();await onVerified({signatureData:null,verified:false});});
 
