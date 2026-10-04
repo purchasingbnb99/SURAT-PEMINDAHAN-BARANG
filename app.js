@@ -30,7 +30,7 @@ import {
   Timestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.44';
+const APP_VERSION = '1.0.45';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -348,44 +348,41 @@ async function collectBackupData(){
 function downloadJson(data,filename){downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'}),filename);}
 async function exportFullBackup(){
   if(state.role!=='admin')return showToast('Hanya Admin yang dapat membuat backup.','error');if(state.backupBusy)return;state.backupBusy=true;
-  try{const data=await collectBackupData();downloadJson(data,`Backup-SPB-${todayISO()}.json`);void logActivity('backup_export','system','',`Backup ${todayISO()}`,{collections:data.collections.map(x=>({name:x.name,count:x.count}))});showToast('Backup lengkap berhasil dibuat.');}
+  try{const data=await collectBackupData();downloadJson(data,'Backup-SPB-'+todayISO()+'.json');void logActivity('backup_export','system','','Backup '+todayISO(),{collections:data.collections.map(function(x){return {name:x.name,count:x.count};})});showToast('Backup lengkap berhasil dibuat.');}
   catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{state.backupBusy=false;}
 }
 function validateBackupStructure(data){
   if(!data||data.format!=='spb-backup'||data.formatVersion!==1||!Array.isArray(data.collections))throw new Error('File backup SPB tidak valid atau format tidak didukung.');
-  const allowed=new Set(['spb','destinations','yearCodes','masterBarang','masterSatuan','counters']);for(const g of data.collections){if(!allowed.has(g.name)||!Array.isArray(g.docs))throw new Error(`Struktur backup ${g.name||'koleksi'} tidak valid.`);}
+  const allowed=new Set(['spb','destinations','yearCodes','masterBarang','masterSatuan','counters']);for(const g of data.collections){if(!allowed.has(g.name)||!Array.isArray(g.docs))throw new Error('Struktur backup '+(g.name||'koleksi')+' tidak valid.');}
 }
 async function restoreFullBackup(file){
   if(state.role!=='admin')return showToast('Hanya Admin yang dapat melakukan restore.','error');
   try{const data=JSON.parse(await file.text());validateBackupStructure(data);const docs=data.collections.flatMap(g=>g.docs.filter(d=>d&&d.id&&d.data&&typeof d.data==='object').map(d=>({...d,collection:g.name})));if(!docs.length)throw new Error('Backup tidak memiliki data.');
-    if(!window.confirm(`Restore ${docs.length} dokumen?\n\nMode MERGE: data tidak dihapus. ID yang sama akan diperbarui.`))return;
+    if(!window.confirm('Restore '+docs.length+' dokumen?\n\nMode MERGE: data tidak dihapus. ID yang sama akan diperbarui.'))return;
     let done=0;for(let start=0;start<docs.length;start+=20){const batch=writeBatch(db);docs.slice(start,start+20).forEach(d=>batch.set(doc(db,d.collection,d.id),reviveBackupValue(d.data),{merge:true}));await batch.commit();done+=Math.min(20,docs.length-start);}
-    await preloadReferenceData();await loadRecentSPBs(5000);void logActivity('backup_restore','system','',`Restore ${todayISO()}`,{documents:docs.length});showToast(`Restore selesai: ${done} dokumen diproses.`);navigate('dashboard');
+    await preloadReferenceData();await loadRecentSPBs(5000);void logActivity('backup_restore','system','','Restore '+todayISO(),{documents:docs.length});showToast('Restore selesai: '+done+' dokumen diproses.');navigate('dashboard');
   }catch(err){console.error(err);showToast(firebaseError(err),'error');}
 }
 async function renderActivityView(){
   const t=$('view-activity');
-  if(!t) return;
-  t.innerHTML='<div class="card card-pad"><div class="section-head"><div><div class="card-title">Aktivitas Sistem</div><div class="card-sub">Jejak login, SPB, print, import/export, master, dan backup.</div></div><button id="refreshActivityBtn" class="btn btn-secondary">Refresh</button></div><div id="activityList"><div class="empty">Memuat aktivitas...</div></div></div>';
-  $('refreshActivityBtn')?.addEventListener('click',renderActivityView);
+  if(!t)return;
+  t.innerHTML='<div class="card card-pad"><div class="section-head"><div><div class="card-title">Aktivitas Sistem</div><div class="card-sub">Jejak login, SPB, print, import/export, master, dan backup.</div></div><button id="refreshActivityBtn" class="btn btn-secondary" type="button">Refresh</button></div><div id="activityList"><div class="empty">Memuat aktivitas...</div></div></div>';
+  const refresh=$('refreshActivityBtn');
+  if(refresh)refresh.addEventListener('click',renderActivityView);
   try{
     const snap=await getDocs(query(collection(db,'auditLogs'),orderBy('at','desc'),limit(200)));
-    const rows=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    const rows=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
     state.activityRows=rows;
     const list=$('activityList');
-    if(!list) return;
-    if(!rows.length){
-      list.innerHTML='<div class="empty">Belum ada aktivitas tercatat.</div>';
-      return;
-    }
+    if(!list)return;
+    if(!rows.length){list.innerHTML='<div class="empty">Belum ada aktivitas tercatat.</div>';return;}
     const body=rows.map(function(x){
-      const detailObj=x.details && typeof x.details==='object' ? x.details : {};
+      const detailObj=(x.details&&typeof x.details==='object')?x.details:{};
       const detailParts=Object.entries(detailObj).map(function(pair){
-        const key=pair[0];
-        const val=pair[1];
-        return key+': '+(val && typeof val==='object' ? JSON.stringify(val) : String(val));
+        const key=pair[0], val=pair[1];
+        return key+': '+(val&&typeof val==='object'?JSON.stringify(val):String(val));
       });
-      const detail=detailParts.join(' • ');
+      const detail=detailParts.join(' | ');
       return '<tr>'+
         '<td>'+escapeHtml(formatDateTime(x.at))+'</td>'+
         '<td><strong>'+escapeHtml(x.actorName||'-')+'</strong><div class="small-help">'+escapeHtml(x.actorRole||'')+'</div></td>'+
@@ -398,17 +395,42 @@ async function renderActivityView(){
   }catch(err){
     console.error(err);
     const list=$('activityList');
-    if(list) list.innerHTML='<div class="empty" style="color:#b91c1c">'+escapeHtml(firebaseError(err))+'</div>';
+    if(list)list.innerHTML='<div class="empty" style="color:#b91c1c">'+escapeHtml(firebaseError(err))+'</div>';
   }
 }
 function renderBackupView(){
-  const t=$('view-backup');t.innerHTML=`<div class="grid" style="gap:16px"><div class="card card-pad"><div class="section-head"><div><div class="card-title">Backup & Restore Data</div><div class="card-sub">Backup lengkap ke JSON. Restore bersifat MERGE dan tidak menghapus data yang sudah ada.</div></div></div><div class="backup-actions"><button id="exportFullBackupBtn" class="btn btn-primary">Export Backup JSON</button><button id="restoreFullBackupBtn" class="btn btn-secondary">Restore Backup JSON</button><input id="restoreBackupFile" type="file" accept="application/json,.json" hidden></div><div class="alert alert-info" style="margin-top:14px">Disarankan membuat backup sebelum import besar atau perubahan master.</div></div></div>`;
-  $('exportFullBackupBtn').addEventListener('click',exportFullBackup);$('restoreFullBackupBtn').addEventListener('click',()=>$('restoreBackupFile').click());$('restoreBackupFile').addEventListener('change',e=>{const f=e.target.files?.[0];e.target.value='';if(f)restoreFullBackup(f);});
+  const t=$('view-backup');
+  if(!t)return;
+  t.innerHTML='<div class="grid" style="gap:16px"><div class="card card-pad"><div class="section-head"><div><div class="card-title">Backup &amp; Restore Data</div><div class="card-sub">Backup lengkap ke JSON. Restore bersifat MERGE dan tidak menghapus data yang sudah ada.</div></div></div><div class="backup-actions"><button id="exportFullBackupBtn" class="btn btn-primary" type="button">Export Backup JSON</button><button id="restoreFullBackupBtn" class="btn btn-secondary" type="button">Restore Backup JSON</button><input id="restoreBackupFile" type="file" accept="application/json,.json" hidden></div><div class="alert alert-info" style="margin-top:14px">Disarankan membuat backup sebelum import besar atau perubahan master.</div></div></div>';
+  const exportBtn=$('exportFullBackupBtn');
+  const restoreBtn=$('restoreFullBackupBtn');
+  const fileInput=$('restoreBackupFile');
+  if(exportBtn)exportBtn.addEventListener('click',exportFullBackup);
+  if(restoreBtn)restoreBtn.addEventListener('click',function(){if(fileInput)fileInput.click();});
+  if(fileInput)fileInput.addEventListener('change',function(e){const f=e.target.files&&e.target.files[0]?e.target.files[0]:null;e.target.value='';if(f)restoreFullBackup(f);});
 }
 async function openRevisionHistory(id){
-  const item=state.spbs.find(x=>x.id===id);if(!item)return;openModal(`<div class="modal-head"><div><div class="card-title">Riwayat Revisi — ${escapeHtml(item.spbCode)}</div><div class="card-sub">Snapshot sebelum edit, tanpa gambar TTD.</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div id="revisionList"><div class="empty">Memuat riwayat...</div></div></div>`,{dismissOnBackdrop:false,modalClass:'modal-history'});$('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
-  try{const snap=await getDocs(query(collection(db,'spbRevisions'),where('spbId','==',id)));const rows=snap.docs.map(d=>d.data()).sort((a,b)=>(timestampMillis(b.revisedAt)||0)-(timestampMillis(a.revisedAt)||0));$('revisionList').innerHTML=rows.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Waktu</th><th>Oleh</th><th>Alasan</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${formatDateTime(x.revisedAt)}</td><td>${escapeHtml(x.revisedByName||'-')}</td><td>${escapeHtml(x.reason||'Edit SPB')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Belum ada revisi tercatat.</div>`;}
-  catch(err){console.error(err);$('revisionList').innerHTML=`<div class="empty" style="color:#b91c1c">${escapeHtml(firebaseError(err))}</div>`;}
+  const item=state.spbs.find(function(x){return x.id===id;});
+  if(!item)return;
+  const modalHtml='<div class="modal-head"><div><div class="card-title">Riwayat Revisi - '+escapeHtml(item.spbCode||'')+'</div><div class="card-sub">Snapshot sebelum edit, tanpa gambar TTD.</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div id="revisionList"><div class="empty">Memuat riwayat...</div></div></div>';
+  openModal(modalHtml,{dismissOnBackdrop:false,modalClass:'modal-history'});
+  const modalRoot=$('modalRoot');
+  if(modalRoot)modalRoot.querySelectorAll('[data-close-modal]').forEach(function(b){b.addEventListener('click',closeModal);});
+  try{
+    const snap=await getDocs(query(collection(db,'spbRevisions'),where('spbId','==',id)));
+    const rows=snap.docs.map(function(d){return d.data();}).sort(function(a,b){return (timestampMillis(b.revisedAt)||0)-(timestampMillis(a.revisedAt)||0);});
+    const list=$('revisionList');
+    if(!list)return;
+    if(!rows.length){list.innerHTML='<div class="empty">Belum ada revisi tercatat.</div>';return;}
+    const body=rows.map(function(x){
+      return '<tr><td>'+escapeHtml(formatDateTime(x.revisedAt))+'</td><td>'+escapeHtml(x.revisedByName||'-')+'</td><td>'+escapeHtml(x.reason||'Edit SPB')+'</td></tr>';
+    }).join('');
+    list.innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Waktu</th><th>Oleh</th><th>Alasan</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  }catch(err){
+    console.error(err);
+    const list=$('revisionList');
+    if(list)list.innerHTML='<div class="empty" style="color:#b91c1c">'+escapeHtml(firebaseError(err))+'</div>';
+  }
 }
 
 async function loadDestinations() {
