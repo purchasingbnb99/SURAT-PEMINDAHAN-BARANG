@@ -30,7 +30,7 @@ import {
   Timestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.43';
+const APP_VERSION = '1.0.44';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -364,10 +364,42 @@ async function restoreFullBackup(file){
   }catch(err){console.error(err);showToast(firebaseError(err),'error');}
 }
 async function renderActivityView(){
-  const t=$('view-activity');t.innerHTML=`<div class="card card-pad"><div class="section-head"><div><div class="card-title">Aktivitas Sistem</div><div class="card-sub">Jejak login, SPB, print, import/export, master, dan backup.</div></div><button id="refreshActivityBtn" class="btn btn-secondary">Refresh</button></div><div id="activityList"><div class="empty">Memuat aktivitas...</div></div></div>`;
-  $('refreshActivityBtn').addEventListener('click',renderActivityView);
-  try{const snap=await getDocs(query(collection(db,'auditLogs'),orderBy('at','desc'),limit(200)));const rows=snap.docs.map(d=>({id:d.id,...d.data()}));state.activityRows=rows;$('activityList').innerHTML=rows.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Target</th><th>Detail</th></tr></thead><tbody>${rows.map(x=>{const detail=x.details&&typeof x.details==='object'?Object.entries(x.details).map(([k,v])=>`${k}: ${typeof v==='object'?JSON.stringify(v):String(v)}`).join(' • '):'';return `<tr><td>${formatDateTime(x.at)}</td><td><strong>${escapeHtml(x.actorName||'-')}</strong><div class="small-help">${escapeHtml(x.actorRole||'')}</div></td><td><span class="pill type-pill">${escapeHtml(x.action||'-')}</span></td><td>${escapeHtml(x.targetLabel||x.targetId||'-')}</td><td class="small-help">${escapeHtml(detail)}</td></tr>`;}).join('')}</tbody></table></div>`:'<div class="empty">Belum ada aktivitas tercatat.</div>`;}
-  catch(err){console.error(err);$('activityList').innerHTML=`<div class="empty" style="color:#b91c1c">${escapeHtml(firebaseError(err))}</div>`;}
+  const t=$('view-activity');
+  if(!t) return;
+  t.innerHTML='<div class="card card-pad"><div class="section-head"><div><div class="card-title">Aktivitas Sistem</div><div class="card-sub">Jejak login, SPB, print, import/export, master, dan backup.</div></div><button id="refreshActivityBtn" class="btn btn-secondary">Refresh</button></div><div id="activityList"><div class="empty">Memuat aktivitas...</div></div></div>';
+  $('refreshActivityBtn')?.addEventListener('click',renderActivityView);
+  try{
+    const snap=await getDocs(query(collection(db,'auditLogs'),orderBy('at','desc'),limit(200)));
+    const rows=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    state.activityRows=rows;
+    const list=$('activityList');
+    if(!list) return;
+    if(!rows.length){
+      list.innerHTML='<div class="empty">Belum ada aktivitas tercatat.</div>';
+      return;
+    }
+    const body=rows.map(function(x){
+      const detailObj=x.details && typeof x.details==='object' ? x.details : {};
+      const detailParts=Object.entries(detailObj).map(function(pair){
+        const key=pair[0];
+        const val=pair[1];
+        return key+': '+(val && typeof val==='object' ? JSON.stringify(val) : String(val));
+      });
+      const detail=detailParts.join(' • ');
+      return '<tr>'+
+        '<td>'+escapeHtml(formatDateTime(x.at))+'</td>'+
+        '<td><strong>'+escapeHtml(x.actorName||'-')+'</strong><div class="small-help">'+escapeHtml(x.actorRole||'')+'</div></td>'+
+        '<td><span class="pill type-pill">'+escapeHtml(x.action||'-')+'</span></td>'+
+        '<td>'+escapeHtml(x.targetLabel||x.targetId||'-')+'</td>'+
+        '<td class="small-help">'+escapeHtml(detail)+'</td>'+
+      '</tr>';
+    }).join('');
+    list.innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Target</th><th>Detail</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  }catch(err){
+    console.error(err);
+    const list=$('activityList');
+    if(list) list.innerHTML='<div class="empty" style="color:#b91c1c">'+escapeHtml(firebaseError(err))+'</div>';
+  }
 }
 function renderBackupView(){
   const t=$('view-backup');t.innerHTML=`<div class="grid" style="gap:16px"><div class="card card-pad"><div class="section-head"><div><div class="card-title">Backup & Restore Data</div><div class="card-sub">Backup lengkap ke JSON. Restore bersifat MERGE dan tidak menghapus data yang sudah ada.</div></div></div><div class="backup-actions"><button id="exportFullBackupBtn" class="btn btn-primary">Export Backup JSON</button><button id="restoreFullBackupBtn" class="btn btn-secondary">Restore Backup JSON</button><input id="restoreBackupFile" type="file" accept="application/json,.json" hidden></div><div class="alert alert-info" style="margin-top:14px">Disarankan membuat backup sebelum import besar atau perubahan master.</div></div></div>`;

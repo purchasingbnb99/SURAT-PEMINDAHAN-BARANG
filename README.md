@@ -125,3 +125,9 @@ The verified `signatureSnapshotData` stored in Firestore is used directly for Pr
 - Riwayat Revisi SPB (`spbRevisions`) melalui detail SPB; snapshot sebelumnya disimpan tanpa gambar TTD besar.
 - Backup & Restore JSON untuk SPB, Master Tujuan, Kode Tahun, Master Barang, Master Satuan, dan counters. Restore bersifat merge/upsert dan tidak menghapus data.
 - Fitur print Continuous Form 9.5" × 5.5", maksimum 6 item, Note/TTD di halaman terakhir, dan proteksi TTD tetap dipertahankan.
+
+
+## V1.0.44 — Login parser-error repair
+- Reworked Activity/Audit Log rendering to avoid deeply nested template literals that can be fragile in some browser-served copies.
+- Added `app.js?v=1044` cache-busting to ensure the browser does not reuse an older `app.js`.
+- No database schema changes.
