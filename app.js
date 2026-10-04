@@ -30,7 +30,7 @@ import {
   Timestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.46';
+const APP_VERSION = '1.0.47';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -75,13 +75,44 @@ const state = {
   activityRows: [],
   activityFilters: { start:'', end:'', user:'', action:'all', term:'' },
   backupBusy: false,
-  deferredInstallPrompt: null
+  deferredInstallPrompt: null,
+  printSettings: null
 };
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const safeNum = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
 const normalized = (v) => String(v ?? '').trim().toLowerCase();
+const DEFAULT_PRINT_SETTINGS = Object.freeze({top:7.5,right:20,bottom:3,left:8,tableInsetRight:18,ttdWidth:13});
+function clampPrintNumber(value,min,max,fallback){const n=Number(value);return Number.isFinite(n)?Math.min(max,Math.max(min,n)):fallback;}
+function loadPrintSettings(){
+  try{
+    const raw=JSON.parse(localStorage.getItem('spb_print_settings')||'{}');
+    return {
+      top:clampPrintNumber(raw.top,1,15,DEFAULT_PRINT_SETTINGS.top),
+      right:clampPrintNumber(raw.right,8,30,DEFAULT_PRINT_SETTINGS.right),
+      bottom:clampPrintNumber(raw.bottom,1,12,DEFAULT_PRINT_SETTINGS.bottom),
+      left:clampPrintNumber(raw.left,5,20,DEFAULT_PRINT_SETTINGS.left),
+      tableInsetRight:clampPrintNumber(raw.tableInsetRight,5,30,DEFAULT_PRINT_SETTINGS.tableInsetRight),
+      ttdWidth:clampPrintNumber(raw.ttdWidth,8,30,DEFAULT_PRINT_SETTINGS.ttdWidth)
+    };
+  }catch{return {...DEFAULT_PRINT_SETTINGS};}
+}
+function savePrintSettings(settings){
+  const next={
+    top:clampPrintNumber(settings.top,1,15,DEFAULT_PRINT_SETTINGS.top),
+    right:clampPrintNumber(settings.right,8,30,DEFAULT_PRINT_SETTINGS.right),
+    bottom:clampPrintNumber(settings.bottom,1,12,DEFAULT_PRINT_SETTINGS.bottom),
+    left:clampPrintNumber(settings.left,5,20,DEFAULT_PRINT_SETTINGS.left),
+    tableInsetRight:clampPrintNumber(settings.tableInsetRight,5,30,DEFAULT_PRINT_SETTINGS.tableInsetRight),
+    ttdWidth:clampPrintNumber(settings.ttdWidth,8,30,DEFAULT_PRINT_SETTINGS.ttdWidth)
+  };
+  state.printSettings=next;
+  localStorage.setItem('spb_print_settings',JSON.stringify(next));
+  return next;
+}
+function resetPrintSettings(){localStorage.removeItem('spb_print_settings');state.printSettings={...DEFAULT_PRINT_SETTINGS};return state.printSettings;}
+state.printSettings=loadPrintSettings();
 function destinationLines(dest={}) {
   let line1 = String(dest.line1 ?? '').trim();
   let line2 = String(dest.line2 ?? '').trim();
@@ -172,7 +203,7 @@ function chunkText(value,max) {
   return text.length <= max ? text : `${text.slice(0,max-1)}…`;
 }
 
-const navIcons = { dashboard:'⌂', spb:'▣', search:'⌕', report:'▤', destination:'◎', year:'Y', masterbarang:'▦', satuan:'◌', signature:'✎', staff:'◉', activity:'◷', backup:'⇩' };
+const navIcons = { dashboard:'⌂', spb:'▣', search:'⌕', report:'▤', destination:'◎', year:'Y', masterbarang:'▦', satuan:'◌', signature:'✎', staff:'◉', activity:'◷', backup:'⇩', printsettings:'⚙' };
 function navButton(key,label,adminOnly=true) {
   return `<button type="button" class="nav-link" data-nav="${key}" ${adminOnly?'data-admin="1"':''}><span style="width:20px;text-align:center">${navIcons[key]||'•'}</span><span>${label}</span></button>`;
 }
@@ -189,19 +220,20 @@ function renderNavigation() {
     navButton('signature','Tanda Tangan'),
     navButton('staff','Staff Aktif'),
     navButton('activity','Aktivitas'),
-    navButton('backup','Backup Data')
+    navButton('backup','Backup Data'),
+    navButton('printsettings','Pengaturan Print')
   ].join('');
   $('staffNav').innerHTML = [navButton('dashboard','Dashboard',false),navButton('search','Cari SPB',false)].join('');
   document.querySelectorAll('[data-nav]').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.nav)));
 }
 function setNavActive(key) { document.querySelectorAll('[data-nav]').forEach(btn=>btn.classList.toggle('active',btn.dataset.nav===key)); }
 function navigate(key) {
-  const allowedAdmin = ['dashboard','spb','search','report','destination','year','masterbarang','satuan','signature','staff','activity','backup'];
+  const allowedAdmin = ['dashboard','spb','search','report','destination','year','masterbarang','satuan','signature','staff','activity','backup','printsettings'];
   const allowedStaff = ['dashboard','search'];
   if (state.role==='admin' && !allowedAdmin.includes(key)) key='dashboard';
   if (state.role==='staff' && !allowedStaff.includes(key)) key='dashboard';
   state.currentView = key;
-  const ids = ['dashboard','spb','search','reports','destinations','yearcodes','masterbarang','satuan','signature','staff','activity','backup'];
+  const ids = ['dashboard','spb','search','reports','destinations','yearcodes','masterbarang','satuan','signature','staff','activity','backup','printsettings'];
   ids.forEach(id=>$(`view-${id}`)?.classList.add('hidden'));
   const targetId = key==='report'?'reports':key==='destination'?'destinations':key==='year'?'yearcodes':key;
   $(`view-${targetId}`)?.classList.remove('hidden');
@@ -221,6 +253,7 @@ function navigate(key) {
   if (key==='staff') renderStaffView();
   if (key==='activity') renderActivityView();
   if (key==='backup') renderBackupView();
+  if (key==='printsettings') renderPrintSettingsView();
 }
 
 async function loadProfile(user) {
@@ -1499,7 +1532,7 @@ async function printHtml(html,orientation='portrait',mode='a4') {
   const style=document.createElement('style');
   style.id='printDynamicStyle';
   style.textContent=mode==='continuous'
-    ? `@media print{@page{size:9.5in 5.5in;margin:0}#printArea{display:block!important}#printArea .continuous-print .print-page{width:241.3mm!important;height:139.7mm!important;min-height:139.7mm!important;margin:0!important;overflow:hidden!important;break-after:page}}`
+    ? `@media print{@page{size:9.5in 5.5in;margin:0}#printArea{display:block!important}#printArea .continuous-print .print-page{width:241.3mm!important;height:139.7mm!important;min-height:139.7mm!important;margin:0!important;overflow:hidden!important;break-after:page;padding:${state.printSettings.top}mm ${state.printSettings.right}mm ${state.printSettings.bottom}mm ${state.printSettings.left}mm!important}.continuous-print .print-table-frame{width:calc(100% - ${state.printSettings.tableInsetRight}mm)!important}.continuous-print .print-sign-box img{max-width:${state.printSettings.ttdWidth}mm!important}}`
     : `@media print{@page{size:A4 ${orientation};margin:10mm}#printArea{display:block!important}}`;
   document.head.appendChild(style);
   try {
@@ -1514,6 +1547,21 @@ async function printHtml(html,orientation='portrait',mode='a4') {
     style.remove();
     showToast('Dokumen print gagal disiapkan.','error');
   }
+}
+
+function renderPrintSettingsView(){
+  const t=$('view-printsettings'); if(!t)return;
+  const s=state.printSettings||loadPrintSettings(); state.printSettings=s;
+  t.innerHTML=`<div class="grid" style="gap:16px"><div class="card card-pad"><div class="section-head"><div><div class="card-title">Pengaturan Print Continuous Form</div><div class="card-sub">Kalibrasi berlaku untuk hasil print SPB di browser/perangkat ini saja. Tidak mengubah data Firebase atau tampilan input.</div></div><button id="resetPrintSettingsBtn" class="btn btn-soft" type="button">Kembalikan Default</button></div><div class="form-grid" style="margin-top:14px"><div class="field"><label>Jarak Atas (mm)</label><input id="printTop" class="input" type="number" min="1" max="15" step="0.5" value="${s.top}"></div><div class="field"><label>Jarak Kanan (mm)</label><input id="printRight" class="input" type="number" min="8" max="30" step="0.5" value="${s.right}"></div><div class="field"><label>Jarak Bawah (mm)</label><input id="printBottom" class="input" type="number" min="1" max="12" step="0.5" value="${s.bottom}"></div><div class="field"><label>Jarak Kiri (mm)</label><input id="printLeft" class="input" type="number" min="5" max="20" step="0.5" value="${s.left}"></div><div class="field"><label>Safe Area Kanan Tabel (mm)</label><input id="printTableInsetRight" class="input" type="number" min="5" max="30" step="0.5" value="${s.tableInsetRight}"></div><div class="field"><label>Lebar Maks. TTD (mm)</label><input id="printTtdWidth" class="input" type="number" min="8" max="30" step="0.5" value="${s.ttdWidth}"></div></div><div class="alert alert-info" style="margin-top:14px"><strong>Ukuran form tetap 9,5 × 5,5 inch.</strong><br>Default mengikuti layout print yang sudah diuji. Atur hanya bila hasil cetak fisik printer bergeser.</div><div class="section-actions" style="margin-top:14px"><button id="savePrintSettingsBtn" class="btn btn-primary" type="button">Simpan Pengaturan Print</button><button id="previewPrintCalibrationBtn" class="btn btn-secondary" type="button">Preview Kalibrasi</button></div></div></div>`;
+  const values=()=>({top:$('printTop').value,right:$('printRight').value,bottom:$('printBottom').value,left:$('printLeft').value,tableInsetRight:$('printTableInsetRight').value,ttdWidth:$('printTtdWidth').value});
+  $('savePrintSettingsBtn').addEventListener('click',()=>{savePrintSettings(values());void logActivity('print_settings_update','print','',`Pengaturan print diperbarui`,state.printSettings);showToast('Pengaturan print berhasil disimpan.');});
+  $('resetPrintSettingsBtn').addEventListener('click',()=>{resetPrintSettings();renderPrintSettingsView();void logActivity('print_settings_reset','print','','Pengaturan print dikembalikan ke default',{});showToast('Pengaturan print dikembalikan ke default.');});
+  $('previewPrintCalibrationBtn').addEventListener('click',async()=>{savePrintSettings(values());showToast('Menyiapkan preview kalibrasi...');await printCalibrationSample();});
+}
+async function printCalibrationSample(){
+  const sample={spbCode:'SAMPLE-CALIBRATION',noLrb:'-',tanggal:todayISO(),type:'Jasa',returCategory:null,toPartyLine1:'CONTOH TUJUAN',toPartyLine2:'TANGERANG',toParty:'CONTOH TUJUAN\nTANGERANG',noPo:'SAMPLE',note:'Tes kalibrasi printer continuous form. Periksa jarak atas, kanan, kiri, garis tabel, dan area tanda tangan.',items:[{no:1,kodeBarang:'',namaBarang:'CONTOH NAMA BARANG',keterangan:'CONTOH KETERANGAN',qtyPcs:100,qtyKg:'',qtyRol:'',qtyMtr:'',qtyLines:[{qty:100,satuan:'Pcs'}],persen:'',noPo:'SAMPLE'}],createdByName:'SAMPLE',signatureSnapshotData:''};
+  void logActivity('print_calibration_preview','print','','Preview kalibrasi print',state.printSettings);
+  await printSpb(sample,{signatureData:null});
 }
 
 async function renderDestinationsView() {

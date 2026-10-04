@@ -137,3 +137,11 @@ The verified `signatureSnapshotData` stored in Firestore is used directly for Pr
 - Aktivitas Sistem: filter tanggal, pengguna, aksi, pencarian detail, dan Export CSV.
 - PWA: manifest + service worker untuk instalasi sebagai aplikasi di perangkat yang mendukung.
 - Layout Print Continuous Form tidak diubah pada versi ini.
+
+
+## V1.0.47 — Pengaturan Print Continuous Form
+- Menambahkan menu Admin **Pengaturan Print** untuk kalibrasi perangkat/browser per printer.
+- Parameter: jarak atas/kanan/bawah/kiri, safe area kanan tabel, dan lebar maksimum TTD.
+- Nilai default mengikuti layout fisik SPB yang sudah diuji dan tidak mengubah tampilan input/data Firebase.
+- Pengaturan disimpan lokal pada perangkat (`localStorage`), sehingga printer tiap komputer dapat dikalibrasi tanpa memengaruhi pengguna lain.
+- Tersedia Preview Kalibrasi dan Kembalikan Default.
