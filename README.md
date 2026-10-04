@@ -1,5 +1,10 @@
 # SURAT PEMINDAHAN BARANG — V1.0.38
 
+## Release note V1.0.41
+- TTD otomatis pada print Continuous Form dinormalisasi saat dicetak: crop rapat, tinta hitam biner, stroke diperkuat ringan, dan resolusi print diperbesar.
+- Snapshot TTD di Firestore tidak diubah; peningkatan dilakukan hanya pada jalur print sehingga proteksi UID + password tetap sama.
+- Disarankan menggunakan PNG TTD bersih sebagai sumber upload.
+
 Aplikasi web SPB berbasis HTML/JavaScript + Tailwind CSS + Firebase Authentication + Firestore. Tidak menggunakan Firebase Cloud Storage.
 
 ## Fitur utama
@@ -108,3 +113,8 @@ V1.0.37: print calibration for physical continuous form, safer right margin, lar
 - Removed the extra continuation title/meta block from pages 2+ while retaining the repeated SPB identity block (Kepada, No LRB, No SPB, Tanggal, Kategori, No PO).
 - Narrowed the continuous-form table frame slightly to protect the right print edge and Qty column on physical tractor-feed forms.
 - Kept the fixed 6-item layout, NOTE on the last page only, and signature/footer behavior unchanged.
+
+
+## TTD exact snapshot (V1.0.41)
+
+The verified `signatureSnapshotData` stored in Firestore is used directly for Preview and Print. The application does not threshold, thicken, crop, or redraw the signature at print time.

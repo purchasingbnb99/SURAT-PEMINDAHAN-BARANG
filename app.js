@@ -29,7 +29,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.39';
+const APP_VERSION = '1.0.41';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -1195,8 +1195,96 @@ async function requestProtectedSpbPrint(item){
 }
 
 function printSpbById(id){return requestProtectedSpbPrintById(id);}
-function printSpb(item,{signatureData=null}={}) {
+
+async function prepareSignatureForPrint(dataUrl){
+  if(!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return dataUrl || null;
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const srcW=Math.max(1,img.naturalWidth||img.width);
+        const srcH=Math.max(1,img.naturalHeight||img.height);
+        const maxSource=900;
+        const sourceScale=Math.min(1,maxSource/srcW);
+        const w=Math.max(1,Math.round(srcW*sourceScale));
+        const h=Math.max(1,Math.round(srcH*sourceScale));
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        const ctx=canvas.getContext('2d',{willReadFrequently:true});
+        if(!ctx) return resolve(dataUrl);
+        ctx.clearRect(0,0,w,h);
+        ctx.drawImage(img,0,0,w,h);
+        const src=ctx.getImageData(0,0,w,h).data;
+        const mask=new Uint8Array(w*h);
+        let minX=w, minY=h, maxX=-1, maxY=-1;
+        for(let y=0;y<h;y++){
+          for(let x=0;x<w;x++){
+            const i=(y*w+x)*4;
+            const a=src[i+3];
+            const lum=0.2126*src[i]+0.7152*src[i+1]+0.0722*src[i+2];
+            if(a>25 && lum<242){
+              mask[y*w+x]=1;
+              if(x<minX)minX=x; if(x>maxX)maxX=x;
+              if(y<minY)minY=y; if(y>maxY)maxY=y;
+            }
+          }
+        }
+        if(maxX<minX || maxY<minY) return resolve(dataUrl);
+
+        // Thicken the ink slightly so impact/dot-matrix printing does not reduce it to dots.
+        const thick=new Uint8Array(w*h);
+        for(let y=Math.max(0,minY-1);y<=Math.min(h-1,maxY+1);y++){
+          for(let x=Math.max(0,minX-1);x<=Math.min(w-1,maxX+1);x++){
+            let hit=0;
+            for(let dy=-1;dy<=1 && !hit;dy++) for(let dx=-1;dx<=1;dx++){
+              const xx=x+dx, yy=y+dy;
+              if(xx>=0&&xx<w&&yy>=0&&yy<h&&mask[yy*w+xx]){hit=1;break;}
+            }
+            if(hit) thick[y*w+x]=1;
+          }
+        }
+        minX=w; minY=h; maxX=-1; maxY=-1;
+        for(let y=0;y<h;y++) for(let x=0;x<w;x++) if(thick[y*w+x]){
+          if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y;
+        }
+        const pad=Math.max(4,Math.round(Math.min(w,h)*0.035));
+        minX=Math.max(0,minX-pad); minY=Math.max(0,minY-pad);
+        maxX=Math.min(w-1,maxX+pad); maxY=Math.min(h-1,maxY+pad);
+        const cw=maxX-minX+1, ch=maxY-minY+1;
+        const outScale=Math.max(2,Math.min(4,900/Math.max(cw,ch)));
+        const outW=Math.max(1,Math.round(cw*outScale));
+        const outH=Math.max(1,Math.round(ch*outScale));
+        const out=document.createElement('canvas'); out.width=outW; out.height=outH;
+        const octx=out.getContext('2d');
+        if(!octx) return resolve(dataUrl);
+        octx.clearRect(0,0,outW,outH);
+        const id=octx.createImageData(outW,outH);
+        for(let y=0;y<outH;y++){
+          const sy=Math.min(ch-1,Math.floor(y/outScale));
+          for(let x=0;x<outW;x++){
+            const sx=Math.min(cw-1,Math.floor(x/outScale));
+            const on=thick[(minY+sy)*w+(minX+sx)];
+            const i=(y*outW+x)*4;
+            id.data[i]=0; id.data[i+1]=0; id.data[i+2]=0; id.data[i+3]=on?255:0;
+          }
+        }
+        octx.putImageData(id,0,0);
+        resolve(out.toDataURL('image/png'));
+      }catch(err){
+        console.warn('TTD print enhancement failed; using stored snapshot.',err);
+        resolve(dataUrl);
+      }
+    };
+    img.onerror=()=>resolve(dataUrl);
+    img.src=dataUrl;
+  });
+}
+
+async function printSpb(item,{signatureData=null}={}) {
   if(!item)return;
+  // V1.0.41: print the exact signature snapshot that was verified.
+  // Do not transform, threshold, thicken, crop, or redraw it at print time.
+  const printerSignatureData = (typeof signatureData === 'string' && signatureData.startsWith('data:image/')) ? signatureData : null;
   const pages=paginateItems(item.items||[],6); const total=pages.length; const columns=printColumnsForItems(item.items||[]); let html='';
   pages.forEach((pageItems,index)=>{
     const continuation=index>0; const isLast=index===total-1; const printTimestamp=formatPrintTimestamp();
@@ -1212,9 +1300,9 @@ function printSpb(item,{signatureData=null}={}) {
       ? `<colgroup><col style="width:6%"><col style="width:35%"><col style="width:40%"><col style="width:14%"><col style="width:5%"></colgroup>`
       : `<colgroup><col style="width:6%"><col style="width:38%"><col style="width:43%"><col style="width:13%"></colgroup>`;
     const table=`<div class="print-table-frame"><table class="print-table">${colgroup}<thead><tr><th>No</th><th>Nama Barang</th><th>Keterangan</th>${printQtyHeaders(columns)}</tr></thead><tbody>${itemRows}${noteRow}</tbody></table></div>`;
-    html+=`<div class="print-page ${continuation?'continuation':''}">${header}${table}${isLast?`<div class="print-sign"><div class="print-sign-box"><div class="role">DIBUAT</div><div class="sig-space">${signatureData?`<img src="${escapeHtml(signatureData)}" alt="TTD Admin">`:''}</div><div class="line"></div><div class="name">${escapeHtml(item.createdByName||'')}</div></div><div class="print-sign-box"><div class="role">DISETUJUI</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">GUDANG / INVENTORY</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">PENERIMA</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div></div>`:''}<div class="print-footer"><span class="print-time">Dicetak: ${escapeHtml(printTimestamp)}</span><span>Lembar ${index+1} dari ${total}</span></div></div>`;
+    html+=`<div class="print-page ${continuation?'continuation':''}">${header}${table}${isLast?`<div class="print-sign"><div class="print-sign-box"><div class="role">DIBUAT</div><div class="sig-space">${printerSignatureData?`<img src="${escapeHtml(printerSignatureData)}" alt="TTD Admin" decoding="sync">`:''}</div><div class="line"></div><div class="name">${escapeHtml(item.createdByName||'')}</div></div><div class="print-sign-box"><div class="role">DISETUJUI</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">GUDANG / INVENTORY</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div><div class="print-sign-box"><div class="role">PENERIMA</div><div class="sig-space"></div><div class="line"></div><div class="name">&nbsp;</div></div></div>`:''}<div class="print-footer"><span class="print-time">Dicetak: ${escapeHtml(printTimestamp)}</span><span>Lembar ${index+1} dari ${total}</span></div></div>`;
   });
-  printHtml(html,'landscape','continuous');
+  return printHtml(html,'landscape','continuous');
 }
 
 async function printHtml(html,orientation='portrait',mode='a4') {

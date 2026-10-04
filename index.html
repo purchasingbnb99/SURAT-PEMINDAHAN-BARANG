@@ -786,6 +786,39 @@
         max-height:28mm!important;
       }
     }
+
+    /* V1.0.41 — exact signature snapshot print.
+       The verified Firestore signature snapshot is used directly at print time; no image transformation. */
+    .continuous-print .print-sign-box .sig-space{
+      height:7mm!important;
+      display:grid!important;
+      place-items:center!important;
+      overflow:visible!important;
+    }
+    .continuous-print .print-sign-box img{
+      display:block!important;
+      width:auto!important;
+      height:auto!important;
+      max-width:18mm!important;
+      max-height:7mm!important;
+      object-fit:contain!important;
+      image-rendering:auto!important;
+      background:transparent!important;
+    }
+    .continuous-print .print-sign-box{min-height:13mm!important}
+    .continuous-print .print-sign-box .name{
+      min-height:3.5mm!important;
+      line-height:1.15!important;
+    }
+
+    @media print{
+      .continuous-print .print-sign-box .sig-space{height:7mm!important}
+      .continuous-print .print-sign-box img{
+        max-width:18mm!important;
+        max-height:7mm!important;
+      }
+      .continuous-print .print-sign-box{min-height:13mm!important}
+    }
 </style>
 </head>
 <body>
@@ -794,7 +827,7 @@
   <div id="loginRoot" class="login-shell">
     <div class="login-card">
       <div class="login-hero">
-        <div class="badge">SPB • V1.0.38</div>
+        <div class="badge">SPB • V1.0.41</div>
         <div class="hero-title">SURAT<br>PEMINDAHAN BARANG</div>
         <div class="hero-copy">Administrasi SPB yang ringan, terstruktur, dan siap digunakan di desktop maupun HP. Database utama menggunakan Firebase Firestore tanpa Cloud Storage.</div>
         <div class="hero-grid">
