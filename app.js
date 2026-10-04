@@ -26,10 +26,11 @@ import {
   serverTimestamp,
   runTransaction,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  Timestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.42';
+const APP_VERSION = '1.0.43';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -70,7 +71,9 @@ const state = {
   pageTitle: 'Dashboard',
   pendingImport: null,
   formPoMode: 'single',
-  formSharedPo: ''
+  formSharedPo: '',
+  activityRows: [],
+  backupBusy: false
 };
 
 const $ = (id) => document.getElementById(id);
@@ -167,7 +170,7 @@ function chunkText(value,max) {
   return text.length <= max ? text : `${text.slice(0,max-1)}…`;
 }
 
-const navIcons = { dashboard:'⌂', spb:'▣', search:'⌕', report:'▤', destination:'◎', year:'Y', masterbarang:'▦', satuan:'◌', signature:'✎', staff:'◉' };
+const navIcons = { dashboard:'⌂', spb:'▣', search:'⌕', report:'▤', destination:'◎', year:'Y', masterbarang:'▦', satuan:'◌', signature:'✎', staff:'◉', activity:'◷', backup:'⇩' };
 function navButton(key,label,adminOnly=true) {
   return `<button type="button" class="nav-link" data-nav="${key}" ${adminOnly?'data-admin="1"':''}><span style="width:20px;text-align:center">${navIcons[key]||'•'}</span><span>${label}</span></button>`;
 }
@@ -182,23 +185,25 @@ function renderNavigation() {
     navButton('masterbarang','Master Barang'),
     navButton('satuan','Master Satuan'),
     navButton('signature','Tanda Tangan'),
-    navButton('staff','Staff Aktif')
+    navButton('staff','Staff Aktif'),
+    navButton('activity','Aktivitas'),
+    navButton('backup','Backup Data')
   ].join('');
   $('staffNav').innerHTML = [navButton('dashboard','Dashboard',false),navButton('search','Cari SPB',false)].join('');
   document.querySelectorAll('[data-nav]').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.nav)));
 }
 function setNavActive(key) { document.querySelectorAll('[data-nav]').forEach(btn=>btn.classList.toggle('active',btn.dataset.nav===key)); }
 function navigate(key) {
-  const allowedAdmin = ['dashboard','spb','search','report','destination','year','masterbarang','satuan','signature','staff'];
+  const allowedAdmin = ['dashboard','spb','search','report','destination','year','masterbarang','satuan','signature','staff','activity','backup'];
   const allowedStaff = ['dashboard','search'];
   if (state.role==='admin' && !allowedAdmin.includes(key)) key='dashboard';
   if (state.role==='staff' && !allowedStaff.includes(key)) key='dashboard';
   state.currentView = key;
-  const ids = ['dashboard','spb','search','reports','destinations','yearcodes','masterbarang','satuan','signature','staff'];
+  const ids = ['dashboard','spb','search','reports','destinations','yearcodes','masterbarang','satuan','signature','staff','activity','backup'];
   ids.forEach(id=>$(`view-${id}`)?.classList.add('hidden'));
   const targetId = key==='report'?'reports':key==='destination'?'destinations':key==='year'?'yearcodes':key;
   $(`view-${targetId}`)?.classList.remove('hidden');
-  const titles = {dashboard:'Dashboard',spb:state.editingId?'Edit SPB':'Input Surat Pemindahan Barang',search:'Cari SPB',report:'Laporan SPB',destination:'Master Tujuan',year:'Master Kode Tahun',masterbarang:'Master Barang',satuan:'Master Satuan',signature:'Tanda Tangan Admin',staff:'Staff Aktif'};
+  const titles = {dashboard:'Dashboard',spb:state.editingId?'Edit SPB':'Input Surat Pemindahan Barang',search:'Cari SPB',report:'Laporan SPB',destination:'Master Tujuan',year:'Master Kode Tahun',masterbarang:'Master Barang',satuan:'Master Satuan',signature:'Tanda Tangan Admin',staff:'Staff Aktif',activity:'Aktivitas Sistem',backup:'Backup & Restore'};
   $('pageTitle').textContent = titles[key] || 'Dashboard';
   $('pageSubtitle').textContent = state.role==='admin'?'Administrasi Surat Pemindahan Barang':'Akses Staff — lihat, cari dan print';
   setNavActive(key); closeDrawer();
@@ -212,6 +217,8 @@ function navigate(key) {
   if (key==='satuan') renderMasterSatuanView();
   if (key==='signature') renderSignatureView();
   if (key==='staff') renderStaffView();
+  if (key==='activity') renderActivityView();
+  if (key==='backup') renderBackupView();
 }
 
 async function loadProfile(user) {
@@ -229,6 +236,7 @@ async function handleAuth(user) {
   }
   if (user.isAnonymous) {
     state.role='staff'; state.profile={name:state.staffName||'Staff',role:'staff'}; state.staffSessionId=user.uid;
+    void logActivity('login','auth',user.uid,state.staffName||'Staff',{});
     $('sessionName').textContent=state.staffName||'Staff'; $('sessionRole').innerHTML=roleBadge('staff');
     $('adminNav').classList.add('hidden'); $('staffNav').classList.remove('hidden');
     $('loginRoot').classList.add('hidden'); $('appRoot').classList.remove('hidden');
@@ -242,6 +250,7 @@ async function handleAuth(user) {
     return;
   }
   state.role='admin'; state.profile=profile;
+  void logActivity('login','auth',user.uid,profile.name||user.email||'Admin',{});
   $('sessionName').textContent=profile.name || user.email || 'Admin'; $('sessionRole').innerHTML=roleBadge('admin');
   $('adminNav').classList.remove('hidden'); $('staffNav').classList.add('hidden'); $('loginRoot').classList.add('hidden'); $('appRoot').classList.remove('hidden');
   await preloadReferenceData();
@@ -288,6 +297,86 @@ function firebaseError(err) {
     'permission-denied':'Akses ditolak oleh Firestore Rules. Publish Rules terbaru atau periksa role Admin.'
   };
   return map[code] || err?.message || 'Terjadi kesalahan.';
+}
+
+
+function timestampMillis(value){
+  if(!value)return null;
+  try{
+    if(typeof value.toMillis==='function') return value.toMillis();
+    const d=value instanceof Date?value:new Date(value);
+    return Number.isNaN(d.getTime())?null:d.getTime();
+  }catch{return null;}
+}
+function serializeBackupValue(value){
+  if(value===null||value===undefined)return value;
+  if(value instanceof Date)return {__spbType:'timestamp',value:value.getTime()};
+  if(typeof value?.toMillis==='function')return {__spbType:'timestamp',value:value.toMillis()};
+  if(Array.isArray(value))return value.map(serializeBackupValue);
+  if(typeof value==='object'){const out={};Object.entries(value).forEach(([k,v])=>{out[k]=serializeBackupValue(v);});return out;}
+  return value;
+}
+function reviveBackupValue(value){
+  if(value===null||value===undefined)return value;
+  if(Array.isArray(value))return value.map(reviveBackupValue);
+  if(typeof value==='object'){
+    if(value.__spbType==='timestamp'&&Number.isFinite(Number(value.value)))return Timestamp.fromMillis(Number(value.value));
+    const out={};Object.entries(value).forEach(([k,v])=>{out[k]=reviveBackupValue(v);});return out;
+  }
+  return value;
+}
+function currentActor(){return {uid:state.user?.uid||'',name:state.profile?.name||state.staffName||state.user?.email||'User',role:state.role||'unknown'};}
+async function logActivity(action,targetType='system',targetId='',targetLabel='',details={}){
+  if(!db||!state.user)return;
+  try{const actor=currentActor();await addDoc(collection(db,'auditLogs'),{action,targetType,targetId:targetId||'',targetLabel:targetLabel||'',actorUid:actor.uid,actorName:actor.name,actorRole:actor.role,details:serializeBackupValue(details),at:serverTimestamp()});}
+  catch(err){console.warn('Audit log gagal disimpan:',err);}
+}
+function revisionSnapshot(item={}){
+  const {signatureSnapshotData,...x}=item;
+  return serializeBackupValue({spbCode:x.spbCode||'',noLrb:x.noLrb||'',tanggal:x.tanggal||'',type:x.type||'',returCategory:x.returCategory||null,fromCompany:x.fromCompany||COMPANY_NAME,toParty:x.toParty||'',toPartyLine1:x.toPartyLine1||'',toPartyLine2:x.toPartyLine2||'',note:x.note||'',items:Array.isArray(x.items)?x.items:[],poMode:x.poMode||'single',sharedNoPo:x.sharedNoPo||'',createdByUid:x.createdByUid||'',createdByName:x.createdByName||'',signatureVersion:x.signatureVersion||'',signatureOwnerUid:x.signatureOwnerUid||'',signatureOwnerName:x.signatureOwnerName||'',yearCodeId:x.yearCodeId||null,yearCode:x.yearCode||''});
+}
+async function saveSpbRevision(item,reason='Edit SPB'){
+  if(!db||!state.user||!item?.id)return;
+  try{await addDoc(collection(db,'spbRevisions'),{spbId:item.id,spbCode:item.spbCode||'',reason,revisedByUid:state.user.uid,revisedByName:state.profile?.name||state.user.email||'Admin',revisedAt:serverTimestamp(),snapshot:revisionSnapshot(item)});}
+  catch(err){console.warn('Riwayat revisi gagal disimpan:',err);}
+}
+async function collectBackupData(){
+  const names=['spb','destinations','yearCodes','masterBarang','masterSatuan','counters'];const collections=[];
+  for(const name of names){const snap=await getDocs(collection(db,name));collections.push({name,count:snap.size,docs:snap.docs.map(d=>({id:d.id,data:serializeBackupValue(d.data())}))});}
+  return {format:'spb-backup',formatVersion:1,appVersion:APP_VERSION,createdAt:new Date().toISOString(),projectId:firebaseConfig.projectId||'',collections};
+}
+function downloadJson(data,filename){downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'}),filename);}
+async function exportFullBackup(){
+  if(state.role!=='admin')return showToast('Hanya Admin yang dapat membuat backup.','error');if(state.backupBusy)return;state.backupBusy=true;
+  try{const data=await collectBackupData();downloadJson(data,`Backup-SPB-${todayISO()}.json`);void logActivity('backup_export','system','',`Backup ${todayISO()}`,{collections:data.collections.map(x=>({name:x.name,count:x.count}))});showToast('Backup lengkap berhasil dibuat.');}
+  catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{state.backupBusy=false;}
+}
+function validateBackupStructure(data){
+  if(!data||data.format!=='spb-backup'||data.formatVersion!==1||!Array.isArray(data.collections))throw new Error('File backup SPB tidak valid atau format tidak didukung.');
+  const allowed=new Set(['spb','destinations','yearCodes','masterBarang','masterSatuan','counters']);for(const g of data.collections){if(!allowed.has(g.name)||!Array.isArray(g.docs))throw new Error(`Struktur backup ${g.name||'koleksi'} tidak valid.`);}
+}
+async function restoreFullBackup(file){
+  if(state.role!=='admin')return showToast('Hanya Admin yang dapat melakukan restore.','error');
+  try{const data=JSON.parse(await file.text());validateBackupStructure(data);const docs=data.collections.flatMap(g=>g.docs.filter(d=>d&&d.id&&d.data&&typeof d.data==='object').map(d=>({...d,collection:g.name})));if(!docs.length)throw new Error('Backup tidak memiliki data.');
+    if(!window.confirm(`Restore ${docs.length} dokumen?\n\nMode MERGE: data tidak dihapus. ID yang sama akan diperbarui.`))return;
+    let done=0;for(let start=0;start<docs.length;start+=20){const batch=writeBatch(db);docs.slice(start,start+20).forEach(d=>batch.set(doc(db,d.collection,d.id),reviveBackupValue(d.data),{merge:true}));await batch.commit();done+=Math.min(20,docs.length-start);}
+    await preloadReferenceData();await loadRecentSPBs(5000);void logActivity('backup_restore','system','',`Restore ${todayISO()}`,{documents:docs.length});showToast(`Restore selesai: ${done} dokumen diproses.`);navigate('dashboard');
+  }catch(err){console.error(err);showToast(firebaseError(err),'error');}
+}
+async function renderActivityView(){
+  const t=$('view-activity');t.innerHTML=`<div class="card card-pad"><div class="section-head"><div><div class="card-title">Aktivitas Sistem</div><div class="card-sub">Jejak login, SPB, print, import/export, master, dan backup.</div></div><button id="refreshActivityBtn" class="btn btn-secondary">Refresh</button></div><div id="activityList"><div class="empty">Memuat aktivitas...</div></div></div>`;
+  $('refreshActivityBtn').addEventListener('click',renderActivityView);
+  try{const snap=await getDocs(query(collection(db,'auditLogs'),orderBy('at','desc'),limit(200)));const rows=snap.docs.map(d=>({id:d.id,...d.data()}));state.activityRows=rows;$('activityList').innerHTML=rows.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Target</th><th>Detail</th></tr></thead><tbody>${rows.map(x=>{const detail=x.details&&typeof x.details==='object'?Object.entries(x.details).map(([k,v])=>`${k}: ${typeof v==='object'?JSON.stringify(v):String(v)}`).join(' • '):'';return `<tr><td>${formatDateTime(x.at)}</td><td><strong>${escapeHtml(x.actorName||'-')}</strong><div class="small-help">${escapeHtml(x.actorRole||'')}</div></td><td><span class="pill type-pill">${escapeHtml(x.action||'-')}</span></td><td>${escapeHtml(x.targetLabel||x.targetId||'-')}</td><td class="small-help">${escapeHtml(detail)}</td></tr>`;}).join('')}</tbody></table></div>`:'<div class="empty">Belum ada aktivitas tercatat.</div>`;}
+  catch(err){console.error(err);$('activityList').innerHTML=`<div class="empty" style="color:#b91c1c">${escapeHtml(firebaseError(err))}</div>`;}
+}
+function renderBackupView(){
+  const t=$('view-backup');t.innerHTML=`<div class="grid" style="gap:16px"><div class="card card-pad"><div class="section-head"><div><div class="card-title">Backup & Restore Data</div><div class="card-sub">Backup lengkap ke JSON. Restore bersifat MERGE dan tidak menghapus data yang sudah ada.</div></div></div><div class="backup-actions"><button id="exportFullBackupBtn" class="btn btn-primary">Export Backup JSON</button><button id="restoreFullBackupBtn" class="btn btn-secondary">Restore Backup JSON</button><input id="restoreBackupFile" type="file" accept="application/json,.json" hidden></div><div class="alert alert-info" style="margin-top:14px">Disarankan membuat backup sebelum import besar atau perubahan master.</div></div></div>`;
+  $('exportFullBackupBtn').addEventListener('click',exportFullBackup);$('restoreFullBackupBtn').addEventListener('click',()=>$('restoreBackupFile').click());$('restoreBackupFile').addEventListener('change',e=>{const f=e.target.files?.[0];e.target.value='';if(f)restoreFullBackup(f);});
+}
+async function openRevisionHistory(id){
+  const item=state.spbs.find(x=>x.id===id);if(!item)return;openModal(`<div class="modal-head"><div><div class="card-title">Riwayat Revisi — ${escapeHtml(item.spbCode)}</div><div class="card-sub">Snapshot sebelum edit, tanpa gambar TTD.</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div id="revisionList"><div class="empty">Memuat riwayat...</div></div></div>`,{dismissOnBackdrop:false,modalClass:'modal-history'});$('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
+  try{const snap=await getDocs(query(collection(db,'spbRevisions'),where('spbId','==',id)));const rows=snap.docs.map(d=>d.data()).sort((a,b)=>(timestampMillis(b.revisedAt)||0)-(timestampMillis(a.revisedAt)||0));$('revisionList').innerHTML=rows.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Waktu</th><th>Oleh</th><th>Alasan</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${formatDateTime(x.revisedAt)}</td><td>${escapeHtml(x.revisedByName||'-')}</td><td>${escapeHtml(x.reason||'Edit SPB')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Belum ada revisi tercatat.</div>`;}
+  catch(err){console.error(err);$('revisionList').innerHTML=`<div class="empty" style="color:#b91c1c">${escapeHtml(firebaseError(err))}</div>`;}
 }
 
 async function loadDestinations() {
@@ -671,9 +760,12 @@ async function saveSpbFromForm(event) {
     if(state.editingId){
       const existing=state.spbs.find(x=>x.id===state.editingId)||await getSpbForEdit(state.editingId);
       await updateDoc(doc(db,'spb',state.editingId),{noLrb,tanggal,type,returCategory:category,fromCompany:COMPANY_NAME,toParty,toPartyLine1,toPartyLine2,toPartyType,toPartyId,note,items,poMode,sharedNoPo,yearCodeId:yearCodeDoc.id,yearCode:String(yearCodeDoc.code).toUpperCase(),updatedAt:serverTimestamp()});
+      void saveSpbRevision(existing,'Edit SPB');
+      void logActivity('spb_edit','spb',existing.id,existing.spbCode,{itemCount:items.length});
       showToast(`SPB ${existing.spbCode} berhasil diperbarui.`); state.editingId=null; await loadRecentSPBs(2000); navigate('search');
     } else {
       const result=await createSpbTransaction({tanggal,type,category,noLrb,toParty,toPartyLine1,toPartyLine2,toPartyType,toPartyId,note,items,poMode,sharedNoPo,yearCodeId:yearCodeDoc.id,yearCode:String(yearCodeDoc.code).toUpperCase()});
+      void logActivity('spb_create','spb',result.id,result.spbCode,{type,itemCount:items.length});
       showToast(`SPB ${result.spbCode} berhasil disimpan.`); await loadRecentSPBs(2000); state.editingId=null; openSpbDetail(result.id);
     }
   } catch(err){console.error(err);showToast(firebaseError(err),'error');}
@@ -709,10 +801,11 @@ async function openSpbDetail(id) {
   const qtyCols = ['qtyPcs','qtyKg','qtyRol','persen'].map((f,i)=>({f,label:['Pcs','Kg','Rol','%'][i],show:(item.items||[]).some(x=>safeNum(x[f])>0)}));
   const unitHeads=qtyCols.filter(x=>x.show).map(x=>`<th class="numeric">${x.label}</th>`).join('');
   const unitCells=x=>qtyCols.filter(c=>c.show).map(c=>`<td class="numeric">${safeNum(x[c.f])>0?fmtNum(x[c.f]):''}</td>`).join('');
-  openModal(`<div class="modal-head"><div><div class="card-title">${escapeHtml(item.spbCode)}</div><div class="chip-row" style="margin-top:5px">${statusBadge(item.status)} ${typeBadge(item.type)} ${categoryBadge(item.returCategory)}</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="info-grid"><div class="card card-pad"><div class="small-help">Tanggal</div><strong>${formatDate(item.tanggal)}</strong></div><div class="card card-pad"><div class="small-help">No LRB</div><strong>${escapeHtml(item.noLrb||'-')}</strong></div><div class="card card-pad"><div class="small-help">Kepada</div><strong>${escapeHtml(to.line1||'-')}${to.line2?`<br>${escapeHtml(to.line2)}`:''}</strong></div><div class="card card-pad"><div class="small-help">Dibuat</div><strong>${escapeHtml(item.createdByName||'-')}</strong></div></div><div style="margin-top:16px"><div class="card-title">Note</div><div class="note-box" style="margin-top:7px">${escapeHtml(item.note||'-')}</div></div><div style="margin-top:16px" class="table-wrap"><table class="table" style="min-width:760px"><thead><tr><th>No</th><th>Kode</th><th>Nama</th><th>Keterangan</th>${unitHeads}</tr></thead><tbody>${(item.items||[]).map(x=>`<tr><td>${x.no}</td><td>${escapeHtml(x.kodeBarang)}</td><td>${escapeHtml(x.namaBarang)}</td><td>${escapeHtml(x.keterangan||'-')}</td>${unitCells(x)}</tr>`).join('')}</tbody></table></div><div class="small-help" style="margin-top:12px">TTD Admin versi ${escapeHtml(item.signatureVersion||'-')} • SPB dibuat ${formatDateTime(item.createdAt)}</div></div><div class="modal-foot"><button type="button" class="btn btn-secondary" data-close-modal>Tutup</button><button id="detailPrintBtn" type="button" class="btn btn-primary">Print SPB</button>${state.role==='admin'&&item.status!=='cancelled'?'<button id="detailEditBtn" type="button" class="btn btn-soft">Edit</button>':''}</div>`);
+  openModal(`<div class="modal-head"><div><div class="card-title">${escapeHtml(item.spbCode)}</div><div class="chip-row" style="margin-top:5px">${statusBadge(item.status)} ${typeBadge(item.type)} ${categoryBadge(item.returCategory)}</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="info-grid"><div class="card card-pad"><div class="small-help">Tanggal</div><strong>${formatDate(item.tanggal)}</strong></div><div class="card card-pad"><div class="small-help">No LRB</div><strong>${escapeHtml(item.noLrb||'-')}</strong></div><div class="card card-pad"><div class="small-help">Kepada</div><strong>${escapeHtml(to.line1||'-')}${to.line2?`<br>${escapeHtml(to.line2)}`:''}</strong></div><div class="card card-pad"><div class="small-help">Dibuat</div><strong>${escapeHtml(item.createdByName||'-')}</strong></div></div><div style="margin-top:16px"><div class="card-title">Note</div><div class="note-box" style="margin-top:7px">${escapeHtml(item.note||'-')}</div></div><div style="margin-top:16px" class="table-wrap"><table class="table" style="min-width:760px"><thead><tr><th>No</th><th>Kode</th><th>Nama</th><th>Keterangan</th>${unitHeads}</tr></thead><tbody>${(item.items||[]).map(x=>`<tr><td>${x.no}</td><td>${escapeHtml(x.kodeBarang)}</td><td>${escapeHtml(x.namaBarang)}</td><td>${escapeHtml(x.keterangan||'-')}</td>${unitCells(x)}</tr>`).join('')}</tbody></table></div><div class="small-help" style="margin-top:12px">TTD Admin versi ${escapeHtml(item.signatureVersion||'-')} • SPB dibuat ${formatDateTime(item.createdAt)}</div></div><div class="modal-foot"><button type="button" class="btn btn-secondary" data-close-modal>Tutup</button><button id="detailPrintBtn" type="button" class="btn btn-primary">Print SPB</button>${state.role==='admin'&&item.status!=='cancelled'?'<button id="detailEditBtn" type="button" class="btn btn-soft">Edit</button><button id="detailRevisionBtn" type="button" class="btn btn-soft">Riwayat Revisi</button>':''}</div>`);
   $('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
   $('detailPrintBtn').addEventListener('click',()=>requestProtectedSpbPrint(item));
   $('detailEditBtn')?.addEventListener('click',()=>{closeModal();state.editingId=id;navigate('spb');});
+  $('detailRevisionBtn')?.addEventListener('click',()=>openRevisionHistory(id));
 }
 
 async function deleteSpb(id) {
@@ -730,6 +823,7 @@ async function deleteSpb(id) {
     }
     state.spbs=state.spbs.filter(x=>x.id!==id);
     state.reportRows=state.reportRows.filter(x=>x.id!==id);
+    void logActivity('spb_delete','spb',id,item.spbCode,{mode});
     showToast(mode==='permanent'?`SPB ${item.spbCode} berhasil dihapus.`:`SPB ${item.spbCode} disembunyikan dari data aktif. Publish Firestore Rules terbaru agar delete permanen dapat digunakan.`);
     if(state.currentView==='dashboard')renderDashboard();
     else if(state.currentView==='search')renderSearchView();
@@ -933,7 +1027,7 @@ function showImportConfirmation(groups){
   const itemCount=groups.reduce((n,g)=>n+g.items.length,0);
   openModal(`<div class="modal-head"><div><div class="card-title">Konfirmasi Import SPB</div><div class="card-sub">Data akan ditambahkan ke Firestore. No. SPB yang sudah ada akan ditolak agar tidak terjadi duplikasi.</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="info-grid"><div class="card card-pad"><div class="small-help">Dokumen</div><strong>${groups.length}</strong></div><div class="card card-pad"><div class="small-help">Baris Barang</div><strong>${itemCount}</strong></div><div class="card card-pad"><div class="small-help">Catatan</div><strong>Tidak mengimpor TTD historis</strong></div></div><div class="alert alert-warning" style="margin-top:14px">Gunakan template resmi agar kolom No. SPB, Tanggal, Jenis, Kategori Retur, Kepada, barang, dan Qty terbaca dengan benar.</div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-modal>Batal</button><button id="confirmImportBtn" class="btn btn-primary">Import ${groups.length} SPB</button></div>`);
   $('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',()=>{state.pendingImport=null;closeModal();}));
-  $('confirmImportBtn').addEventListener('click',async()=>{const btn=$('confirmImportBtn');setBusy(btn,true,'Mengimpor...');try{await commitImportedSpb(state.pendingImport||[]);const count=state.pendingImport?.length||0;state.pendingImport=null;closeModal();await preloadReferenceData();await loadRecentSPBs(5000);showToast(`Import berhasil: ${count} SPB.`);renderReportsView();}catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{setBusy(btn,false);}});
+  $('confirmImportBtn').addEventListener('click',async()=>{const btn=$('confirmImportBtn');setBusy(btn,true,'Mengimpor...');try{await commitImportedSpb(state.pendingImport||[]);const count=state.pendingImport?.length||0;state.pendingImport=null;closeModal();await preloadReferenceData();await loadRecentSPBs(5000);void logActivity('spb_import','spb','',`Import ${count} SPB`,{count});showToast(`Import berhasil: ${count} SPB.`);renderReportsView();}catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{setBusy(btn,false);}});
 }
 async function importSpbExcelFile(file){
   try{const {XLSX,rows}=await readExcelRows(file); if(!rows.length)throw new Error('File Excel tidak berisi data.'); const {groups,errors}=buildImportGroups(rows,XLSX); if(errors.length){openModal(`<div class="modal-head"><div><div class="card-title">Import ditolak</div><div class="card-sub">Perbaiki data Excel terlebih dahulu.</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="alert alert-danger">Ditemukan ${errors.length} masalah.</div><div style="max-height:320px;overflow:auto;margin-top:10px"><ol style="padding-left:22px">${errors.slice(0,60).map(e=>`<li style="margin:5px 0">${escapeHtml(e)}</li>`).join('')}</ol>${errors.length>60?`<div class="small-help">Masih ada ${errors.length-60} masalah lainnya.</div>`:''}</div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-modal>Tutup</button></div>`);$('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));return;} if(!groups.length)throw new Error('Tidak ada data SPB yang valid.'); showImportConfirmation(groups);}catch(err){console.error(err);showToast(firebaseError(err),'error');}
@@ -1159,7 +1253,7 @@ async function verifyAutomaticSignatureAccess(item, onVerified){
       </form>`:`<div class="small-help">Akun yang sedang login bukan pemilik TTD ini. Untuk keamanan, hanya opsi Print Tanpa TTD yang tersedia.</div>`}
     </div>`, {dismissOnBackdrop:false, modalClass:'modal-confirm-print'});
   $('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
-  $('printWithoutSignatureBtn').addEventListener('click',async()=>{closeModal();await onVerified({signatureData:null,verified:false});});
+  $('printWithoutSignatureBtn').addEventListener('click',async()=>{closeModal();void logActivity('spb_print_without_ttd','spb',item.id,item.spbCode,{ttd:false});await onVerified({signatureData:null,verified:false});});
 
   if(isOwner){
     const form=$('ttdConfirmForm');
@@ -1175,6 +1269,7 @@ async function verifyAutomaticSignatureAccess(item, onVerified){
         const credential=EmailAuthProvider.credential(email,password);
         await reauthenticateWithCredential(state.user,credential);
         closeModal();
+        void logActivity('spb_print_with_ttd','spb',item.id,item.spbCode,{ttd:true,signatureOwnerUid:ownerUid});
         await onVerified({signatureData,verified:true});
       }catch(err){
         console.error(err);
@@ -1191,6 +1286,7 @@ async function requestProtectedSpbPrint(item){
   if(item.signatureSnapshotData){
     return verifyAutomaticSignatureAccess(item, async({signatureData})=>printSpb(item,{signatureData}));
   }
+  void logActivity('spb_print','spb',item.id,item.spbCode,{ttd:false});
   return printSpb(item,{signatureData:null});
 }
 
@@ -1346,7 +1442,7 @@ function openDestinationModal(existing=null){
   const lines=destinationLines(existing||{});
   openModal(`<div class="modal-head"><div><div class="card-title">${existing?'Edit':'Tambah'} Tujuan</div><div class="card-sub">Baris 1 biasanya nama perusahaan/tujuan; Baris 2 dapat diisi kota atau informasi tambahan.</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="form-grid-2"><div class="field"><label>Kepada — Baris 1 *</label><input id="destLine1" class="input" maxlength="150" value="${escapeHtml(lines.line1)}" placeholder="Nama PT / tujuan"></div><div class="field"><label>Kepada — Baris 2</label><input id="destLine2" class="input" maxlength="150" value="${escapeHtml(lines.line2)}" placeholder="Kota / informasi tambahan"></div></div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-modal>Batal</button><button id="saveDestBtn" class="btn btn-primary">Simpan</button></div>`);
   $('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
-  $('saveDestBtn').addEventListener('click',async()=>{const line1=$('destLine1').value.trim();const line2=$('destLine2').value.trim();if(!line1)return showToast('Kepada Baris 1 wajib diisi.','warning');const name=[line1,line2].filter(Boolean).join('\n');const btn=$('saveDestBtn');setBusy(btn,true,'Menyimpan...');try{const dup=state.destinations.find(x=>destinationLabel(x).toLowerCase()===destinationLabel({line1,line2}).toLowerCase()&&x.id!==existing?.id);if(dup)throw new Error('Tujuan tersebut sudah ada.');const payload={name,line1,line2,active:existing?.active!==false,updatedAt:serverTimestamp()};if(existing)await updateDoc(doc(db,'destinations',existing.id),payload);else await addDoc(collection(db,'destinations'),{...payload,createdAt:serverTimestamp()});closeModal();await loadDestinations();renderDestinationsView();showToast('Master Tujuan tersimpan.');}catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{setBusy(btn,false);}});
+  $('saveDestBtn').addEventListener('click',async()=>{const line1=$('destLine1').value.trim();const line2=$('destLine2').value.trim();if(!line1)return showToast('Kepada Baris 1 wajib diisi.','warning');const name=[line1,line2].filter(Boolean).join('\n');const btn=$('saveDestBtn');setBusy(btn,true,'Menyimpan...');try{const dup=state.destinations.find(x=>destinationLabel(x).toLowerCase()===destinationLabel({line1,line2}).toLowerCase()&&x.id!==existing?.id);if(dup)throw new Error('Tujuan tersebut sudah ada.');const payload={name,line1,line2,active:existing?.active!==false,updatedAt:serverTimestamp()};if(existing)await updateDoc(doc(db,'destinations',existing.id),payload);else await addDoc(collection(db,'destinations'),{...payload,createdAt:serverTimestamp()});closeModal();await loadDestinations();void logActivity(existing?'master_update':'master_create','destinations',existing?.id||'',line1,{line2});renderDestinationsView();showToast('Master Tujuan tersimpan.');}catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{setBusy(btn,false);}});
 }
 
 async function toggleDestination(id){const x=state.destinations.find(d=>d.id===id);if(!x)return;try{await updateDoc(doc(db,'destinations',id),{active:x.active===false,updatedAt:serverTimestamp()});await loadDestinations();renderDestinationsView();}catch(err){console.error(err);showToast(firebaseError(err),'error');}}
@@ -1394,7 +1490,7 @@ async function renderMasterBarangView(){
 }
 async function loadAndRenderMasterBarang(){try{await loadMasterBarang();renderMasterBarangTable();}catch(err){console.error(err);$('masterBarangTable').innerHTML=`<div class="empty" style="color:#b91c1c">${escapeHtml(firebaseError(err))}</div>`;}}
 function renderMasterBarangTable(){const t=$('masterBarangTable');if(!t)return;const term=normalized($('masterBarangSearch')?.value||'');const rows=state.masterBarang.filter(x=>!term||normalized(x.kodeBarang).includes(term)||normalized(x.namaBarang).includes(term));if(!rows.length){t.innerHTML='<div class="empty">Belum ada barang yang sesuai.</div>';return;}t.innerHTML=`<div class="table-wrap"><table class="table"><thead><tr><th>Kode</th><th>Nama</th><th>Satuan</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows.map(x=>`<tr><td><strong>${escapeHtml(x.kodeBarang)}</strong></td><td>${escapeHtml(x.namaBarang)}</td><td><div class="chip-row">${(x.unitModes||availableUnits()).map(u=>`<span class="pill type-pill">${u}</span>`).join('')}</div></td><td>${x.active!==false?'<span class="pill status-active">Aktif</span>':'<span class="pill status-cancelled">Nonaktif</span>'}</td><td><div class="row-actions"><button class="btn btn-secondary btn-sm" data-barang-edit="${x.id}">Edit</button><button class="btn btn-soft btn-sm" data-barang-toggle="${x.id}">${x.active!==false?'Nonaktifkan':'Aktifkan'}</button></div></td></tr>`).join('')}</tbody></table></div>`;t.querySelectorAll('[data-barang-edit]').forEach(b=>b.addEventListener('click',()=>{const x=state.masterBarang.find(y=>y.id===b.dataset.barangEdit);if(x)openBarangModal(x);}));t.querySelectorAll('[data-barang-toggle]').forEach(b=>b.addEventListener('click',()=>toggleBarang(b.dataset.barangToggle)));}
-function openBarangModal(existing=null){openModal(`<div class="modal-head"><div><div class="card-title">${existing?'Edit':'Tambah'} Master Barang</div><div class="card-sub">Satuan dapat berupa Pcs, Kg, Rol, MTR, atau satuan tambahan dari Master Satuan.</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="form-grid-2"><div class="field"><label>Kode Barang *</label><input id="barangKode" class="input" maxlength="60" value="${escapeHtml(existing?.kodeBarang||'')}"></div><div class="field"><label>Nama Barang *</label><input id="barangNama" class="input" maxlength="160" value="${escapeHtml(existing?.namaBarang||'')}"></div></div><div class="field" style="margin-top:14px"><label>Satuan yang digunakan</label><div class="checkboxes">${availableUnits().map(u=>`<label class="check-pill"><input type="checkbox" class="barang-unit" value="${u}" ${(existing?.unitModes||availableUnits()).map(unitLabel).includes(u)?'checked':''}> ${u}</label>`).join('')}</div></div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-modal>Batal</button><button id="saveBarangBtn" class="btn btn-primary">Simpan</button></div>`);$('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));$('saveBarangBtn').addEventListener('click',async()=>{const kode=$('barangKode').value.trim();const nama=$('barangNama').value.trim();const units=[...document.querySelectorAll('.barang-unit:checked')].map(x=>x.value);if(!kode||!nama)return showToast('Kode dan Nama Barang wajib diisi.','warning');if(!units.length)return showToast('Pilih minimal satu satuan.','warning');const dup=state.masterBarang.find(x=>normalized(x.kodeBarang)===normalized(kode)&&x.id!==existing?.id);if(dup)return showToast('Kode Barang sudah digunakan di Master Barang.','warning');const btn=$('saveBarangBtn');setBusy(btn,true,'Menyimpan...');try{const payload={kodeBarang:kode,namaBarang:nama,unitModes:units,active:existing?.active!==false,updatedAt:serverTimestamp()};if(existing)await updateDoc(doc(db,'masterBarang',existing.id),payload);else await addDoc(collection(db,'masterBarang'),{...payload,createdAt:serverTimestamp()});closeModal();await loadMasterBarang();renderMasterBarangView();showToast('Master Barang tersimpan.');}catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{setBusy(btn,false);}});}
+function openBarangModal(existing=null){openModal(`<div class="modal-head"><div><div class="card-title">${existing?'Edit':'Tambah'} Master Barang</div><div class="card-sub">Satuan dapat berupa Pcs, Kg, Rol, MTR, atau satuan tambahan dari Master Satuan.</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="form-grid-2"><div class="field"><label>Kode Barang *</label><input id="barangKode" class="input" maxlength="60" value="${escapeHtml(existing?.kodeBarang||'')}"></div><div class="field"><label>Nama Barang *</label><input id="barangNama" class="input" maxlength="160" value="${escapeHtml(existing?.namaBarang||'')}"></div></div><div class="field" style="margin-top:14px"><label>Satuan yang digunakan</label><div class="checkboxes">${availableUnits().map(u=>`<label class="check-pill"><input type="checkbox" class="barang-unit" value="${u}" ${(existing?.unitModes||availableUnits()).map(unitLabel).includes(u)?'checked':''}> ${u}</label>`).join('')}</div></div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-modal>Batal</button><button id="saveBarangBtn" class="btn btn-primary">Simpan</button></div>`);$('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));$('saveBarangBtn').addEventListener('click',async()=>{const kode=$('barangKode').value.trim();const nama=$('barangNama').value.trim();const units=[...document.querySelectorAll('.barang-unit:checked')].map(x=>x.value);if(!kode||!nama)return showToast('Kode dan Nama Barang wajib diisi.','warning');if(!units.length)return showToast('Pilih minimal satu satuan.','warning');const dup=state.masterBarang.find(x=>normalized(x.kodeBarang)===normalized(kode)&&x.id!==existing?.id);if(dup)return showToast('Kode Barang sudah digunakan di Master Barang.','warning');const btn=$('saveBarangBtn');setBusy(btn,true,'Menyimpan...');try{const payload={kodeBarang:kode,namaBarang:nama,unitModes:units,active:existing?.active!==false,updatedAt:serverTimestamp()};if(existing)await updateDoc(doc(db,'masterBarang',existing.id),payload);else await addDoc(collection(db,'masterBarang'),{...payload,createdAt:serverTimestamp()});closeModal();await loadMasterBarang();void logActivity(existing?'master_update':'master_create','masterBarang',existing?.id||'',kode,{nama});renderMasterBarangView();showToast('Master Barang tersimpan.');}catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{setBusy(btn,false);}});}
 async function toggleBarang(id){const x=state.masterBarang.find(y=>y.id===id);if(!x)return;try{await updateDoc(doc(db,'masterBarang',id),{active:x.active===false,updatedAt:serverTimestamp()});await loadMasterBarang();renderMasterBarangView();}catch(err){console.error(err);showToast(firebaseError(err),'error');}}
 
 async function renderMasterSatuanView(){
@@ -1413,7 +1509,7 @@ function renderMasterSatuanTable(){
 function openSatuanModal(existing=null){
   openModal(`<div class="modal-head"><div><div class="card-title">Tambah Satuan</div><div class="card-sub">Contoh: PCS, KG, ROL, MTR, BOX, SET.</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="field"><label>Nama Satuan *</label><input id="satuanNama" class="input" maxlength="20" placeholder="Contoh BOX"></div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-modal>Batal</button><button id="saveSatuanBtn" class="btn btn-primary">Simpan</button></div>`);
   $('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
-  $('saveSatuanBtn').addEventListener('click',async()=>{const nama=unitLabel($('satuanNama').value);if(!/^[A-Z0-9 _\/-]{1,20}$/.test(nama))return showToast('Nama satuan tidak valid.','warning');if(state.masterSatuan.some(x=>unitLabel(x.nama)===nama))return showToast('Satuan tersebut sudah terdaftar.','warning');const btn=$('saveSatuanBtn');setBusy(btn,true,'Menyimpan...');try{await addDoc(collection(db,'masterSatuan'),{nama,active:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});closeModal();await loadMasterSatuan();renderMasterSatuanTable();showToast(`Satuan ${nama} tersimpan.`);}catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{setBusy(btn,false);}});
+  $('saveSatuanBtn').addEventListener('click',async()=>{const nama=unitLabel($('satuanNama').value);if(!/^[A-Z0-9 _\/-]{1,20}$/.test(nama))return showToast('Nama satuan tidak valid.','warning');if(state.masterSatuan.some(x=>unitLabel(x.nama)===nama))return showToast('Satuan tersebut sudah terdaftar.','warning');const btn=$('saveSatuanBtn');setBusy(btn,true,'Menyimpan...');try{await addDoc(collection(db,'masterSatuan'),{nama,active:true,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});closeModal();await loadMasterSatuan();void logActivity('master_create','masterSatuan','',nama,{});renderMasterSatuanTable();showToast(`Satuan ${nama} tersimpan.`);}catch(err){console.error(err);showToast(firebaseError(err),'error');}finally{setBusy(btn,false);}});
 }
 
 function renderSignatureView(){
@@ -1431,7 +1527,7 @@ function isSessionActive(ts){if(!ts)return false;const d=ts?.toDate?ts.toDate():
 function staffSessionRow(x){const active=isSessionActive(x.lastSeen);return `<div style="border:1px solid #e4eaf1;border-radius:14px;padding:11px 12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><strong style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(x.namaStaff||'Staff')}</strong><div class="staff-status"><span class="dot ${active?'':'offline'}"></span>${active?'Online':'Offline'}</div></div><div class="small-help" style="margin-top:3px">Login ${formatDateTime(x.loginAt)} • Aktif ${formatDateTime(x.lastSeen)}</div></div>`;}
 async function renderStaffView(){const t=$('view-staff');t.innerHTML=`<div class="grid" style="gap:16px"><div class="card card-pad"><div class="section-head"><div><div class="card-title">Staff Aktif & Riwayat Sesi</div><div class="card-sub">Status Online dihitung dari lastSeen.</div></div><button id="refreshStaffBtn" class="btn btn-secondary">Refresh</button></div><div id="staffList">Memuat...</div></div><div class="alert alert-warning">Karena Login Staff memang tanpa password, nama yang diketik adalah identitas sesi aplikasi, bukan verifikasi identitas orang.</div></div>`;$('refreshStaffBtn').addEventListener('click',renderStaffView);try{const snap=await getDocs(query(collection(db,'staffSessions'),orderBy('lastSeen','desc'),limit(100)));const rows=snap.docs.map(d=>({id:d.id,...d.data()}));$('staffList').innerHTML=rows.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Nama</th><th>Login</th><th>Terakhir Aktif</th><th>Status</th></tr></thead><tbody>${rows.map(x=>`<tr><td><strong>${escapeHtml(x.namaStaff||'Staff')}</strong></td><td>${formatDateTime(x.loginAt)}</td><td>${formatDateTime(x.lastSeen)}</td><td>${isSessionActive(x.lastSeen)?'<span class="pill status-active">Online</span>':'<span class="pill type-pill">Offline</span>'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Belum ada sesi Staff.</div>';}catch(err){console.error(err);$('staffList').innerHTML=`<div class="empty">${escapeHtml(firebaseError(err))}</div>`;}}
 
-async function logout(){try{clearInterval(state.heartbeatTimer);if(state.user?.isAnonymous)await setDoc(doc(db,'staffSessions',state.user.uid),{lastSeen:serverTimestamp(),active:false},{merge:true}).catch(()=>{});await signOut(auth);localStorage.removeItem('spb_staff_name');state.searchLoaded=false;}catch(err){console.error(err);showToast(firebaseError(err),'error');}}
+async function logout(){try{const actor=currentActor();void logActivity('logout','auth',actor.uid,actor.name,{});clearInterval(state.heartbeatTimer);if(state.user?.isAnonymous)await setDoc(doc(db,'staffSessions',state.user.uid),{lastSeen:serverTimestamp(),active:false},{merge:true}).catch(()=>{});await signOut(auth);localStorage.removeItem('spb_staff_name');state.searchLoaded=false;}catch(err){console.error(err);showToast(firebaseError(err),'error');}}
 
 function bindGlobalEvents(){
   $('showAdminLogin').addEventListener('click',()=>{ $('showAdminLogin').classList.add('active');$('showStaffLogin').classList.remove('active');$('adminLoginForm').classList.remove('hidden');$('staffLoginForm').classList.add('hidden'); });

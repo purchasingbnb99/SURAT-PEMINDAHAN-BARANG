@@ -75,6 +75,26 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorRole in ['admin','staff']
+        && request.resource.data.action is string
+        && request.resource.data.targetType is string;
+      allow update, delete: if false;
+    }
+
+    match /spbRevisions/{revisionId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.revisedByUid == request.auth.uid
+        && request.resource.data.spbId is string
+        && request.resource.data.spbCode is string;
+      allow update, delete: if false;
+    }
+
     match /staffSessions/{sessionId} {
       allow read: if isAdmin() || (isAnonymous() && request.auth.uid == sessionId);
       allow create: if validStaffSession();

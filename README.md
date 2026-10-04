@@ -118,3 +118,10 @@ V1.0.37: print calibration for physical continuous form, safer right margin, lar
 ## TTD exact snapshot (V1.0.41)
 
 The verified `signatureSnapshotData` stored in Firestore is used directly for Preview and Print. The application does not threshold, thicken, crop, or redraw the signature at print time.
+
+
+## V1.0.43 — Admin productivity tools
+- Audit Log (`auditLogs`) untuk aktivitas login/logout, SPB, print, import, master, dan backup.
+- Riwayat Revisi SPB (`spbRevisions`) melalui detail SPB; snapshot sebelumnya disimpan tanpa gambar TTD besar.
+- Backup & Restore JSON untuk SPB, Master Tujuan, Kode Tahun, Master Barang, Master Satuan, dan counters. Restore bersifat merge/upsert dan tidak menghapus data.
+- Fitur print Continuous Form 9.5" × 5.5", maksimum 6 item, Note/TTD di halaman terakhir, dan proteksi TTD tetap dipertahankan.

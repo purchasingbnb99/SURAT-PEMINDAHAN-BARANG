@@ -838,6 +838,11 @@
       .modal.modal-confirm-print .modal-head{padding:14px 15px}
       .modal.modal-confirm-print .modal-body{padding:14px 15px}
     }
+
+    /* V1.0.43 — admin productivity tools */
+    .backup-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.modal-history .modal{max-width:760px;width:calc(100vw - 32px)}
+    @media(max-width:640px){.backup-actions{display:grid;grid-template-columns:1fr}.backup-actions .btn{width:100%}}
+
 </style>
 </head>
 <body>
@@ -846,7 +851,7 @@
   <div id="loginRoot" class="login-shell">
     <div class="login-card">
       <div class="login-hero">
-        <div class="badge">SPB • V1.0.42</div>
+        <div class="badge">SPB • V1.0.43</div>
         <div class="hero-title">SURAT<br>PEMINDAHAN BARANG</div>
         <div class="hero-copy">Administrasi SPB yang ringan, terstruktur, dan siap digunakan di desktop maupun HP. Database utama menggunakan Firebase Firestore tanpa Cloud Storage.</div>
         <div class="hero-grid">
@@ -897,6 +902,8 @@
         <section id="view-satuan" class="hidden"></section>
         <section id="view-signature" class="hidden"></section>
         <section id="view-staff" class="hidden"></section>
+        <section id="view-activity" class="hidden"></section>
+        <section id="view-backup" class="hidden"></section>
       </div>
     </main>
   </div>
