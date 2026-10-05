@@ -145,3 +145,12 @@ The verified `signatureSnapshotData` stored in Firestore is used directly for Pr
 - Nilai default mengikuti layout fisik SPB yang sudah diuji dan tidak mengubah tampilan input/data Firebase.
 - Pengaturan disimpan lokal pada perangkat (`localStorage`), sehingga printer tiap komputer dapat dikalibrasi tanpa memengaruhi pengguna lain.
 - Tersedia Preview Kalibrasi dan Kembalikan Default.
+
+
+## V1.0.48 — Draft Otomatis
+- Draft Input SPB disimpan otomatis di perangkat/browser Admin, tanpa mengirim draft ke Firestore.
+- Draft mencakup informasi SPB, tujuan, Note, mode No. PO, dan detail barang + Qty/Satuan.
+- TTD tidak pernah disimpan di draft.
+- Admin dapat Pulihkan Draft atau Hapus Draft.
+- Draft otomatis dibersihkan setelah SPB berhasil dibuat atau setelah edit berhasil disimpan.
+- Tidak ada perubahan Firestore Rules.

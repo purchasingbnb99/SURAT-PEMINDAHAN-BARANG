@@ -30,7 +30,7 @@ import {
   Timestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.47';
+const APP_VERSION = '1.0.48';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -76,7 +76,9 @@ const state = {
   activityFilters: { start:'', end:'', user:'', action:'all', term:'' },
   backupBusy: false,
   deferredInstallPrompt: null,
-  printSettings: null
+  printSettings: null,
+  draftTimer: null,
+  draftVersion: 1
 };
 
 const $ = (id) => document.getElementById(id);
@@ -113,6 +115,82 @@ function savePrintSettings(settings){
 }
 function resetPrintSettings(){localStorage.removeItem('spb_print_settings');state.printSettings={...DEFAULT_PRINT_SETTINGS};return state.printSettings;}
 state.printSettings=loadPrintSettings();
+
+const SPB_DRAFT_PREFIX = 'spb_draft_v1_';
+function spbDraftKey(){ return SPB_DRAFT_PREFIX + (state.user?.uid || 'local'); }
+function getSavedSpbDraft(){
+  try{
+    const raw=localStorage.getItem(spbDraftKey());
+    if(!raw)return null;
+    const data=JSON.parse(raw);
+    if(!data || data.version!==state.draftVersion || !data.savedAt)return null;
+    return data;
+  }catch{return null;}
+}
+function clearSpbDraft(){
+  try{localStorage.removeItem(spbDraftKey());}catch{}
+  if(state.draftTimer){clearTimeout(state.draftTimer);state.draftTimer=null;}
+}
+function collectSpbDraft(){
+  const form=$('spbForm');
+  if(!form || state.role!=='admin' || state.editingId)return null;
+  const items=state.formItems.map((x,i)=>({
+    ...x,
+    no:i+1,
+    quantities:Array.isArray(x.quantities)?x.quantities.map(q=>({qty:q.qty,satuan:unitLabel(q.satuan)})):[]
+  }));
+  return {
+    version:state.draftVersion,
+    savedAt:new Date().toISOString(),
+    noLrb:$('spbNoLrb')?.value||'',
+    tanggal:$('spbTanggal')?.value||todayISO(),
+    type:$('spbType')?.value||'Jasa',
+    category:$('spbCategory')?.value||'',
+    yearCodeId:$('spbYearCode')?.value||'',
+    toMaster:$('spbToMaster')?.value||'',
+    manualTo1:$('spbManualTo1')?.value||'',
+    manualTo2:$('spbManualTo2')?.value||'',
+    note:$('spbNote')?.value||'',
+    poMode:$('spbPoMode')?.value||state.formPoMode||'single',
+    sharedPo:$('spbSharedPo')?.value||state.formSharedPo||'',
+    items
+  };
+}
+function saveSpbDraftNow(){
+  const draft=collectSpbDraft();
+  if(!draft)return;
+  try{localStorage.setItem(spbDraftKey(),JSON.stringify(draft));}catch(err){console.warn('Draft SPB tidak dapat disimpan:',err);}
+}
+function scheduleSpbDraftSave(){
+  if(state.role!=='admin' || state.editingId)return;
+  clearTimeout(state.draftTimer);
+  state.draftTimer=setTimeout(saveSpbDraftNow,450);
+}
+function applySpbDraft(draft){
+  if(!draft)return;
+  $('spbNoLrb').value=String(draft.noLrb||'');
+  $('spbTanggal').value=String(draft.tanggal||todayISO());
+  $('spbType').value=['Jasa','Retur','Umum'].includes(draft.type)?draft.type:'Jasa';
+  $('returCategoryWrap').style.display=$('spbType').value==='Retur'?'':'none';
+  if($('spbCategory'))$('spbCategory').value=String(draft.category||'');
+  if($('spbYearCode'))$('spbYearCode').value=String(draft.yearCodeId||'');
+  if($('spbToMaster'))$('spbToMaster').value=String(draft.toMaster||'');
+  if($('spbManualTo1'))$('spbManualTo1').value=String(draft.manualTo1||'');
+  if($('spbManualTo2'))$('spbManualTo2').value=String(draft.manualTo2||'');
+  const manual=draft.toMaster==='__manual__';
+  $('manualToWrap').style.display=manual?'grid':'none';
+  if($('spbNote'))$('spbNote').value=String(draft.note||'');
+  state.formPoMode=draft.poMode==='perItem'?'perItem':'single';
+  state.formSharedPo=String(draft.sharedPo||'');
+  if($('spbPoMode'))$('spbPoMode').value=state.formPoMode;
+  if($('sharedPoWrap'))$('sharedPoWrap').style.display=state.formPoMode==='single'?'':'none';
+  if($('spbSharedPo'))$('spbSharedPo').value=state.formSharedPo;
+  state.formItems=Array.isArray(draft.items)&&draft.items.length?draft.items.map((x,i)=>createInitialItem(i+1,x)):[createInitialItem(1)];
+  if(state.formPoMode==='single')state.formItems.forEach(x=>{x.noPo=state.formSharedPo;});
+  renderFormItems();
+  showToast('Draft SPB berhasil dipulihkan.');
+  scheduleSpbDraftSave();
+}
 function destinationLines(dest={}) {
   let line1 = String(dest.line1 ?? '').trim();
   let line2 = String(dest.line2 ?? '').trim();
@@ -739,7 +817,7 @@ async function renderSpbForm(editId=null) {
   const lockedYearCode=Boolean(existing);
   target.innerHTML=`<div class="grid" style="gap:16px">
     <form id="spbForm" class="grid" style="gap:16px">
-      <div class="card card-pad"><div class="section-head"><div><div class="card-title">Informasi SPB</div><div class="card-sub">Semua informasi utama berada dalam satu panel.</div></div><button id="resetSpbBtn" class="btn btn-secondary" type="button">${existing?'Batal Edit':'Reset Form'}</button></div>
+      <div class="card card-pad"><div class="section-head"><div><div class="card-title">Informasi SPB</div><div class="card-sub">Semua informasi utama berada dalam satu panel.</div></div><button id="resetSpbBtn" class="btn btn-secondary" type="button">${existing?'Batal Edit':'Reset Form'}</button></div>${!existing && getSavedSpbDraft()?`<div id="spbDraftBanner" class="alert alert-info" style="margin-top:12px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><strong>Draft SPB ditemukan.</strong><div style="margin-top:3px">Draft terakhir tersimpan ${escapeHtml(formatDateTime(getSavedSpbDraft().savedAt))} di perangkat ini.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="restoreSpbDraftBtn" type="button" class="btn btn-secondary">Pulihkan Draft</button><button id="deleteSpbDraftBtn" type="button" class="btn btn-soft">Hapus Draft</button></div></div>`:}
         <div class="form-grid">
           <div class="field"><label>No LRB</label><input id="spbNoLrb" class="input" maxlength="80" value="${escapeHtml(existing?.noLrb||'')}" placeholder="Isi manual"></div>
           <div class="field"><label>No SPB</label><div class="input" style="background:#f8fafc;font-weight:900;color:#64748b">${existing?escapeHtml(existing.spbCode):'Otomatis saat simpan'}</div></div>
@@ -762,8 +840,13 @@ async function renderSpbForm(editId=null) {
     </form>
   </div>`;
   renderFormItems();
-  $('resetSpbBtn').addEventListener('click',()=>{state.editingId=null;navigate('spb');});
-  $('addItemBtn').addEventListener('click',()=>{const next=createInitialItem(state.formItems.length+1);if(state.formPoMode==='single')next.noPo=state.formSharedPo;state.formItems.push(next);renderFormItems();});
+  if(!existing){
+    const draft=getSavedSpbDraft();
+    $('restoreSpbDraftBtn')?.addEventListener('click',()=>{applySpbDraft(draft);});
+    $('deleteSpbDraftBtn')?.addEventListener('click',()=>{clearSpbDraft();$('spbDraftBanner')?.remove();showToast('Draft SPB dihapus.','success');});
+  }
+  $('resetSpbBtn').addEventListener('click',()=>{if(!existing)clearSpbDraft();state.editingId=null;navigate('spb');});
+  $('addItemBtn').addEventListener('click',()=>{const next=createInitialItem(state.formItems.length+1);if(state.formPoMode==='single')next.noPo=state.formSharedPo;state.formItems.push(next);renderFormItems();scheduleSpbDraftSave();});
   $('spbPoMode').addEventListener('change',()=>{const previousMode=state.formPoMode;const nextMode=$('spbPoMode').value;state.formPoMode=nextMode;if(nextMode==='single'){const firstPo=state.formItems.find(x=>String(x.noPo||'').trim())?.noPo?.trim()||'';const fieldPo=$('spbSharedPo')?.value.trim()||'';state.formSharedPo=previousMode==='perItem'?(firstPo||''):(fieldPo||state.formSharedPo||firstPo||'');state.formItems.forEach(x=>{x.noPo=state.formSharedPo;});$('sharedPoWrap').style.display='';}else{$('sharedPoWrap').style.display='none';}renderFormItems();});
   $('spbSharedPo').addEventListener('input',()=>{state.formSharedPo=$('spbSharedPo').value;state.formItems.forEach(x=>{x.noPo=state.formSharedPo.trim();});document.querySelectorAll('#itemsTableWrap input[data-field="noPo"]').forEach(inp=>{inp.value=state.formSharedPo;});});
   $('spbType').addEventListener('change',()=>{ $('returCategoryWrap').style.display=$('spbType').value==='Retur'?'':'none'; if($('spbType').value!=='Retur')$('spbCategory').value=''; });
@@ -780,6 +863,10 @@ async function renderSpbForm(editId=null) {
   });
   $('openSignatureFromForm').addEventListener('click',()=>navigate('signature'));
   $('spbForm').addEventListener('submit',saveSpbFromForm);
+  if(!existing){
+    $('spbForm').addEventListener('input',scheduleSpbDraftSave);
+    $('spbForm').addEventListener('change',scheduleSpbDraftSave);
+  }
 }
 
 function renderFormItems() {
@@ -815,13 +902,14 @@ function renderFormItems() {
       state.formItems[i].persen=calculatePresentase(state.formItems[i].qtyOrder,state.formItems[i].qtyRetur,state.formItems[i].persen);
       const pctInput=wrap.querySelector(`input[data-index="${i}"][data-field="persen"]`); if(pctInput)pctInput.value=state.formItems[i].persen;
     }
+    scheduleSpbDraftSave();
   }));
   wrap.querySelectorAll('input[data-field="kodeBarang"]').forEach(inp=>{const auto=()=>{const i=Number(inp.dataset.index),m=getSelectedMaster(inp.value);if(m){const item=state.formItems[i];item.kodeBarang=m.kodeBarang;item.namaBarang=m.namaBarang;item.unitModes=Array.isArray(m.unitModes)?m.unitModes.map(unitLabel):availableUnits();if(!item.quantities.length)item.quantities=[{qty:'',satuan:item.unitModes[0]||availableUnits()[0]||''}];renderFormItems();}};inp.addEventListener('change',auto);});
-  wrap.querySelectorAll('.qty-unit-input,.qty-unit-select').forEach(el=>el.addEventListener('input',()=>{const i=Number(el.dataset.index),qi=Number(el.dataset.qtyIndex),f=el.dataset.qtyField;state.formItems[i].quantities[qi][f]=el.value;}));
-  wrap.querySelectorAll('.qty-unit-select').forEach(el=>el.addEventListener('change',()=>{const i=Number(el.dataset.index),qi=Number(el.dataset.qtyIndex);state.formItems[i].quantities[qi].satuan=unitLabel(el.value);}));
-  wrap.querySelectorAll('.qty-add-btn').forEach(btn=>btn.addEventListener('click',()=>{const i=Number(btn.dataset.index),item=state.formItems[i],units=item.unitModes?.length?item.unitModes.map(unitLabel):availableUnits(),used=new Set(item.quantities.map(q=>unitLabel(q.satuan)));const next=units.find(u=>!used.has(u))||units[0]||'';item.quantities.push({qty:'',satuan:next});renderFormItems();}));
-  wrap.querySelectorAll('.qty-remove-btn').forEach(btn=>btn.addEventListener('click',()=>{const i=Number(btn.dataset.index),qi=Number(btn.dataset.qtyIndex);state.formItems[i].quantities.splice(qi,1);if(!state.formItems[i].quantities.length)state.formItems[i].quantities=[{qty:'',satuan:''}];renderFormItems();}));
-  wrap.querySelectorAll('[data-remove-item]').forEach(btn=>btn.addEventListener('click',()=>{const i=Number(btn.dataset.removeItem);if(state.formItems.length>1){state.formItems.splice(i,1);state.formItems.forEach((x,j)=>x.no=j+1);renderFormItems();}}));
+  wrap.querySelectorAll('.qty-unit-input,.qty-unit-select').forEach(el=>el.addEventListener('input',()=>{const i=Number(el.dataset.index),qi=Number(el.dataset.qtyIndex),f=el.dataset.qtyField;state.formItems[i].quantities[qi][f]=el.value;scheduleSpbDraftSave();}));
+  wrap.querySelectorAll('.qty-unit-select').forEach(el=>el.addEventListener('change',()=>{const i=Number(el.dataset.index),qi=Number(el.dataset.qtyIndex);state.formItems[i].quantities[qi].satuan=unitLabel(el.value);scheduleSpbDraftSave();}));
+  wrap.querySelectorAll('.qty-add-btn').forEach(btn=>btn.addEventListener('click',()=>{const i=Number(btn.dataset.index),item=state.formItems[i],units=item.unitModes?.length?item.unitModes.map(unitLabel):availableUnits(),used=new Set(item.quantities.map(q=>unitLabel(q.satuan)));const next=units.find(u=>!used.has(u))||units[0]||'';item.quantities.push({qty:'',satuan:next});renderFormItems();scheduleSpbDraftSave();}));
+  wrap.querySelectorAll('.qty-remove-btn').forEach(btn=>btn.addEventListener('click',()=>{const i=Number(btn.dataset.index),qi=Number(btn.dataset.qtyIndex);state.formItems[i].quantities.splice(qi,1);if(!state.formItems[i].quantities.length)state.formItems[i].quantities=[{qty:'',satuan:''}];renderFormItems();scheduleSpbDraftSave();}));
+  wrap.querySelectorAll('[data-remove-item]').forEach(btn=>btn.addEventListener('click',()=>{const i=Number(btn.dataset.removeItem);if(state.formItems.length>1){state.formItems.splice(i,1);state.formItems.forEach((x,j)=>x.no=j+1);renderFormItems();scheduleSpbDraftSave();}}));
 }
 
 function openBarangPicker(index) {
@@ -884,12 +972,14 @@ async function saveSpbFromForm(event) {
     if(state.editingId){
       const existing=state.spbs.find(x=>x.id===state.editingId)||await getSpbForEdit(state.editingId);
       await updateDoc(doc(db,'spb',state.editingId),{noLrb,tanggal,type,returCategory:category,fromCompany:COMPANY_NAME,toParty,toPartyLine1,toPartyLine2,toPartyType,toPartyId,note,items,poMode,sharedNoPo,yearCodeId:yearCodeDoc.id,yearCode:String(yearCodeDoc.code).toUpperCase(),updatedAt:serverTimestamp()});
+      clearSpbDraft();
       void saveSpbRevision(existing,'Edit SPB');
       void logActivity('spb_edit','spb',existing.id,existing.spbCode,{itemCount:items.length});
       showToast(`SPB ${existing.spbCode} berhasil diperbarui.`); state.editingId=null; await loadRecentSPBs(2000); navigate('search');
     } else {
       const result=await createSpbTransaction({tanggal,type,category,noLrb,toParty,toPartyLine1,toPartyLine2,toPartyType,toPartyId,note,items,poMode,sharedNoPo,yearCodeId:yearCodeDoc.id,yearCode:String(yearCodeDoc.code).toUpperCase()});
       void logActivity('spb_create','spb',result.id,result.spbCode,{type,itemCount:items.length});
+      clearSpbDraft();
       showToast(`SPB ${result.spbCode} berhasil disimpan.`); await loadRecentSPBs(2000); state.editingId=null; openSpbDetail(result.id);
     }
   } catch(err){console.error(err);showToast(firebaseError(err),'error');}
