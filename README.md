@@ -147,7 +147,7 @@ The verified `signatureSnapshotData` stored in Firestore is used directly for Pr
 - Tersedia Preview Kalibrasi dan Kembalikan Default.
 
 
-## V1.0.48 — Draft Otomatis
+## V1.0.49 — Draft Otomatis
 - Draft Input SPB disimpan otomatis di perangkat/browser Admin, tanpa mengirim draft ke Firestore.
 - Draft mencakup informasi SPB, tujuan, Note, mode No. PO, dan detail barang + Qty/Satuan.
 - TTD tidak pernah disimpan di draft.

@@ -30,7 +30,7 @@ import {
   Timestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.48';
+const APP_VERSION = '1.0.49';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -815,9 +815,13 @@ async function renderSpbForm(editId=null) {
   const yearOptions=yearCodesForYear(selectedYear);
   const selectedYearCode=existingParts?.code || existing?.yearCode || (yearOptions[0]?.code||'');
   const lockedYearCode=Boolean(existing);
+  const savedDraft=getSavedSpbDraft();
+  const draftBannerHtml = (!existing && savedDraft)
+    ? '<div id="spbDraftBanner" class="alert alert-info" style="margin-top:12px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><strong>Draft SPB ditemukan.</strong><div style="margin-top:3px">Draft terakhir tersimpan ' + escapeHtml(formatDateTime(savedDraft.savedAt)) + ' di perangkat ini.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="restoreSpbDraftBtn" type="button" class="btn btn-secondary">Pulihkan Draft</button><button id="deleteSpbDraftBtn" type="button" class="btn btn-soft">Hapus Draft</button></div></div>'
+    : '';
   target.innerHTML=`<div class="grid" style="gap:16px">
     <form id="spbForm" class="grid" style="gap:16px">
-      <div class="card card-pad"><div class="section-head"><div><div class="card-title">Informasi SPB</div><div class="card-sub">Semua informasi utama berada dalam satu panel.</div></div><button id="resetSpbBtn" class="btn btn-secondary" type="button">${existing?'Batal Edit':'Reset Form'}</button></div>${!existing && getSavedSpbDraft()?`<div id="spbDraftBanner" class="alert alert-info" style="margin-top:12px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><strong>Draft SPB ditemukan.</strong><div style="margin-top:3px">Draft terakhir tersimpan ${escapeHtml(formatDateTime(getSavedSpbDraft().savedAt))} di perangkat ini.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="restoreSpbDraftBtn" type="button" class="btn btn-secondary">Pulihkan Draft</button><button id="deleteSpbDraftBtn" type="button" class="btn btn-soft">Hapus Draft</button></div></div>`:}
+      <div class="card card-pad"><div class="section-head"><div><div class="card-title">Informasi SPB</div><div class="card-sub">Semua informasi utama berada dalam satu panel.</div></div><button id="resetSpbBtn" class="btn btn-secondary" type="button">${existing?'Batal Edit':'Reset Form'}</button></div>${draftBannerHtml}
         <div class="form-grid">
           <div class="field"><label>No LRB</label><input id="spbNoLrb" class="input" maxlength="80" value="${escapeHtml(existing?.noLrb||'')}" placeholder="Isi manual"></div>
           <div class="field"><label>No SPB</label><div class="input" style="background:#f8fafc;font-weight:900;color:#64748b">${existing?escapeHtml(existing.spbCode):'Otomatis saat simpan'}</div></div>
