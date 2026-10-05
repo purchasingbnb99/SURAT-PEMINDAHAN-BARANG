@@ -1,4 +1,4 @@
-# SURAT PEMINDAHAN BARANG — V1.0.38
+# SURAT PEMINDAHAN BARANG — V1.0.50
 
 ## Release note V1.0.41
 - TTD otomatis pada print Continuous Form dinormalisasi saat dicetak: crop rapat, tinta hitam biner, stroke diperkuat ringan, dan resolusi print diperbesar.
@@ -154,3 +154,9 @@ The verified `signatureSnapshotData` stored in Firestore is used directly for Pr
 - Admin dapat Pulihkan Draft atau Hapus Draft.
 - Draft otomatis dibersihkan setelah SPB berhasil dibuat atau setelah edit berhasil disimpan.
 - Tidak ada perubahan Firestore Rules.
+
+
+## V1.0.50 — Search & Copy Productivity
+- Cari SPB memiliki filter tanggal, jenis, kategori Retur, dan status tanpa mengubah Firestore schema.
+- Detail SPB Admin memiliki tombol Salin ke Form untuk membuat SPB baru dari data lama; nomor SPB dan No LRB tidak disalin, sedangkan TTD akan mengikuti Admin yang sedang login saat dokumen baru disimpan.
+- Layout print Continuous Form dan mekanisme keamanan TTD tidak diubah.

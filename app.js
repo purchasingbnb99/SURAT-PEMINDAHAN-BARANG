@@ -30,7 +30,7 @@ import {
   Timestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '1.0.49';
+const APP_VERSION = '1.0.50';
 const COMPANY_NAME = 'PT. BEST & BEST INDONESIA';
 const RETUR_CATEGORIES = ['Retur Jasa','Retur Benang','Retur Longchain','Retur Kain Pita','Retur Slider'];
 const DEFAULT_UNITS = ['Pcs','Kg','Rol','MTR'];
@@ -67,6 +67,7 @@ const state = {
   formItems: [],
   reportFilters: { start: firstDayOfMonth(), end: todayISO(), type: 'all', prefix: 'all', category: 'all', code: '' },
   searchTerm: '',
+  searchFilters: {start:'', end:'', type:'all', category:'all', status:'active'},
   searchLoaded: false,
   pageTitle: 'Dashboard',
   pendingImport: null,
@@ -78,7 +79,8 @@ const state = {
   deferredInstallPrompt: null,
   printSettings: null,
   draftTimer: null,
-  draftVersion: 1
+  draftVersion: 1,
+  clonePrefill: null
 };
 
 const $ = (id) => document.getElementById(id);
@@ -798,32 +800,36 @@ async function renderSpbForm(editId=null) {
   state.editingId=editId;
   const target=$('view-spb');
   const existing=editId?await getSpbForEdit(editId):null;
+  const clone=(!editId && state.clonePrefill)?state.clonePrefill:null;
+  if(!editId && clone) state.clonePrefill=null;
   if(editId && !existing){ showToast('Data SPB tidak ditemukan.','error');state.editingId=null;return renderSpbForm(); }
-  state.formItems=existing?.items?.length?existing.items.map((x,i)=>createInitialItem(i+1,x)):[createInitialItem(1)];
+  const source=existing||clone||{};
+  state.formItems=source?.items?.length?source.items.map((x,i)=>createInitialItem(i+1,x)):[createInitialItem(1)];
   const existingPoValues=[...new Set(state.formItems.map(x=>String(x.noPo||'').trim()).filter(Boolean))];
-  state.formPoMode=existing?.poMode||(existingPoValues.length>1?'perItem':'single');
-  state.formSharedPo=existing?.sharedNoPo||existingPoValues[0]||'';
+  state.formPoMode=source?.poMode||(existingPoValues.length>1?'perItem':'single');
+  state.formSharedPo=source?.sharedNoPo||existingPoValues[0]||'';
   if(state.formPoMode==='single' && state.formSharedPo) state.formItems.forEach(x=>{x.noPo=state.formSharedPo;});
-  const type=existing?.type||'Jasa';
-  const cat=existing?.returCategory||'';
-  const toSelection=resolveExistingDestination(existing||{});
+  const type=source?.type||'Jasa';
+  const cat=source?.returCategory||'';
+  const toSelection=resolveExistingDestination(source||{});
   const manualLines=toSelection.lines;
   const selectedToId=toSelection.mode==='master'?toSelection.id:'';
   const useManualTo=toSelection.mode==='manual';
-  const existingParts=parseSpbCodeParts(existing?.spbCode);
-  const selectedYear=Number(existing?.tanggal?.slice(0,4)||todayISO().slice(0,4));
+  const existingParts=parseSpbCodeParts(source?.spbCode);
+  const selectedYear=Number(source?.tanggal?.slice(0,4)||todayISO().slice(0,4));
   const yearOptions=yearCodesForYear(selectedYear);
-  const selectedYearCode=existingParts?.code || existing?.yearCode || (yearOptions[0]?.code||'');
+  const selectedYearCode=existingParts?.code || source?.yearCode || (yearOptions[0]?.code||'');
   const lockedYearCode=Boolean(existing);
   const savedDraft=getSavedSpbDraft();
+  const cloneBannerHtml=clone?'<div class="alert alert-success" style="margin-top:12px"><strong>SPB disalin ke Form Baru.</strong><div style="margin-top:3px">Data dari '+escapeHtml(clone.sourceCode||'SPB sebelumnya')+' dapat diperiksa dan diubah sebelum disimpan. Nomor SPB baru dibuat otomatis saat disimpan.</div></div>':'';
   const draftBannerHtml = (!existing && savedDraft)
     ? '<div id="spbDraftBanner" class="alert alert-info" style="margin-top:12px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><strong>Draft SPB ditemukan.</strong><div style="margin-top:3px">Draft terakhir tersimpan ' + escapeHtml(formatDateTime(savedDraft.savedAt)) + ' di perangkat ini.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="restoreSpbDraftBtn" type="button" class="btn btn-secondary">Pulihkan Draft</button><button id="deleteSpbDraftBtn" type="button" class="btn btn-soft">Hapus Draft</button></div></div>'
     : '';
   target.innerHTML=`<div class="grid" style="gap:16px">
     <form id="spbForm" class="grid" style="gap:16px">
-      <div class="card card-pad"><div class="section-head"><div><div class="card-title">Informasi SPB</div><div class="card-sub">Semua informasi utama berada dalam satu panel.</div></div><button id="resetSpbBtn" class="btn btn-secondary" type="button">${existing?'Batal Edit':'Reset Form'}</button></div>${draftBannerHtml}
+      <div class="card card-pad"><div class="section-head"><div><div class="card-title">Informasi SPB</div><div class="card-sub">Semua informasi utama berada dalam satu panel.</div></div><button id="resetSpbBtn" class="btn btn-secondary" type="button">${existing?'Batal Edit':'Reset Form'}</button></div>${cloneBannerHtml}${draftBannerHtml}
         <div class="form-grid">
-          <div class="field"><label>No LRB</label><input id="spbNoLrb" class="input" maxlength="80" value="${escapeHtml(existing?.noLrb||'')}" placeholder="Isi manual"></div>
+          <div class="field"><label>No LRB</label><input id="spbNoLrb" class="input" maxlength="80" value="${escapeHtml(existing?existing.noLrb:'')}" placeholder="Isi manual"></div>
           <div class="field"><label>No SPB</label><div class="input" style="background:#f8fafc;font-weight:900;color:#64748b">${existing?escapeHtml(existing.spbCode):'Otomatis saat simpan'}</div></div>
           <div class="field"><label>Tanggal *</label><input id="spbTanggal" class="input" type="date" value="${existing?.tanggal||todayISO()}" required ${existing?'':' '}></div>
           <div class="field"><label>Jenis SPB *</label><select id="spbType" class="select" required><option value="Jasa" ${type==='Jasa'?'selected':''}>Jasa</option><option value="Retur" ${type==='Retur'?'selected':''}>Retur</option><option value="Umum" ${type==='Umum'?'selected':''}>Umum</option></select></div>
@@ -1019,10 +1025,11 @@ async function openSpbDetail(id) {
   const qtyCols = ['qtyPcs','qtyKg','qtyRol','persen'].map((f,i)=>({f,label:['Pcs','Kg','Rol','%'][i],show:(item.items||[]).some(x=>safeNum(x[f])>0)}));
   const unitHeads=qtyCols.filter(x=>x.show).map(x=>`<th class="numeric">${x.label}</th>`).join('');
   const unitCells=x=>qtyCols.filter(c=>c.show).map(c=>`<td class="numeric">${safeNum(x[c.f])>0?fmtNum(x[c.f]):''}</td>`).join('');
-  openModal(`<div class="modal-head"><div><div class="card-title">${escapeHtml(item.spbCode)}</div><div class="chip-row" style="margin-top:5px">${statusBadge(item.status)} ${typeBadge(item.type)} ${categoryBadge(item.returCategory)}</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="info-grid"><div class="card card-pad"><div class="small-help">Tanggal</div><strong>${formatDate(item.tanggal)}</strong></div><div class="card card-pad"><div class="small-help">No LRB</div><strong>${escapeHtml(item.noLrb||'-')}</strong></div><div class="card card-pad"><div class="small-help">Kepada</div><strong>${escapeHtml(to.line1||'-')}${to.line2?`<br>${escapeHtml(to.line2)}`:''}</strong></div><div class="card card-pad"><div class="small-help">Dibuat</div><strong>${escapeHtml(item.createdByName||'-')}</strong></div></div><div style="margin-top:16px"><div class="card-title">Note</div><div class="note-box" style="margin-top:7px">${escapeHtml(item.note||'-')}</div></div><div style="margin-top:16px" class="table-wrap"><table class="table" style="min-width:760px"><thead><tr><th>No</th><th>Kode</th><th>Nama</th><th>Keterangan</th>${unitHeads}</tr></thead><tbody>${(item.items||[]).map(x=>`<tr><td>${x.no}</td><td>${escapeHtml(x.kodeBarang)}</td><td>${escapeHtml(x.namaBarang)}</td><td>${escapeHtml(x.keterangan||'-')}</td>${unitCells(x)}</tr>`).join('')}</tbody></table></div><div class="small-help" style="margin-top:12px">TTD Admin versi ${escapeHtml(item.signatureVersion||'-')} • SPB dibuat ${formatDateTime(item.createdAt)}</div></div><div class="modal-foot"><button type="button" class="btn btn-secondary" data-close-modal>Tutup</button><button id="detailPrintBtn" type="button" class="btn btn-primary">Print SPB</button>${state.role==='admin'&&item.status!=='cancelled'?'<button id="detailEditBtn" type="button" class="btn btn-soft">Edit</button><button id="detailRevisionBtn" type="button" class="btn btn-soft">Riwayat Revisi</button>':''}</div>`);
+  openModal(`<div class="modal-head"><div><div class="card-title">${escapeHtml(item.spbCode)}</div><div class="chip-row" style="margin-top:5px">${statusBadge(item.status)} ${typeBadge(item.type)} ${categoryBadge(item.returCategory)}</div></div><button type="button" class="btn btn-soft" data-close-modal>Tutup</button></div><div class="modal-body"><div class="info-grid"><div class="card card-pad"><div class="small-help">Tanggal</div><strong>${formatDate(item.tanggal)}</strong></div><div class="card card-pad"><div class="small-help">No LRB</div><strong>${escapeHtml(item.noLrb||'-')}</strong></div><div class="card card-pad"><div class="small-help">Kepada</div><strong>${escapeHtml(to.line1||'-')}${to.line2?`<br>${escapeHtml(to.line2)}`:''}</strong></div><div class="card card-pad"><div class="small-help">Dibuat</div><strong>${escapeHtml(item.createdByName||'-')}</strong></div></div><div style="margin-top:16px"><div class="card-title">Note</div><div class="note-box" style="margin-top:7px">${escapeHtml(item.note||'-')}</div></div><div style="margin-top:16px" class="table-wrap"><table class="table" style="min-width:760px"><thead><tr><th>No</th><th>Kode</th><th>Nama</th><th>Keterangan</th>${unitHeads}</tr></thead><tbody>${(item.items||[]).map(x=>`<tr><td>${x.no}</td><td>${escapeHtml(x.kodeBarang)}</td><td>${escapeHtml(x.namaBarang)}</td><td>${escapeHtml(x.keterangan||'-')}</td>${unitCells(x)}</tr>`).join('')}</tbody></table></div><div class="small-help" style="margin-top:12px">TTD Admin versi ${escapeHtml(item.signatureVersion||'-')} • SPB dibuat ${formatDateTime(item.createdAt)}</div></div><div class="modal-foot"><button type="button" class="btn btn-secondary" data-close-modal>Tutup</button><button id="detailPrintBtn" type="button" class="btn btn-primary">Print SPB</button>${state.role==='admin'&&item.status!=='cancelled'?'<button id="detailEditBtn" type="button" class="btn btn-soft">Edit</button><button id="detailCloneBtn" type="button" class="btn btn-secondary">Salin ke Form</button><button id="detailRevisionBtn" type="button" class="btn btn-soft">Riwayat Revisi</button>':''}</div>`);
   $('modalRoot').querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
   $('detailPrintBtn').addEventListener('click',()=>requestProtectedSpbPrint(item));
   $('detailEditBtn')?.addEventListener('click',()=>{closeModal();state.editingId=id;navigate('spb');});
+  $('detailCloneBtn')?.addEventListener('click',()=>{state.clonePrefill=JSON.parse(JSON.stringify({...item,id:undefined,spbCode:'',noLrb:'',createdAt:null,updatedAt:null,signatureSnapshotData:undefined,signatureOwnerUid:undefined,signatureOwnerName:undefined,sourceCode:item.spbCode}));state.editingId=null;closeModal();void logActivity('spb_clone_to_form','spb',id,item.spbCode,{source:item.spbCode});navigate('spb');});
   $('detailRevisionBtn')?.addEventListener('click',()=>openRevisionHistory(id));
 }
 
@@ -1051,14 +1058,55 @@ async function deleteSpb(id) {
 
 function renderSearchView() {
   const target=$('view-search');
-  target.innerHTML=`<div class="grid" style="gap:16px"><div class="card card-pad"><div class="section-head"><div><div class="card-title">Cari SPB</div><div class="card-sub">Ketik kode SPB, No LRB, tujuan, barang, kategori, atau keterangan.</div></div><button id="searchReloadBtn" class="btn btn-secondary">Muat Ulang</button></div><div class="search-bar"><input id="searchInput" class="input" value="${escapeHtml(state.searchTerm)}" placeholder="Contoh: R26I0001 / Benang / PT XYZ / LRB-001"><button id="searchBtn" class="btn btn-primary">Cari</button></div><div id="searchMeta" class="small-help" style="margin-top:8px"></div></div><div class="card card-pad"><div id="searchResults"></div></div></div>`;
-  $('searchBtn').addEventListener('click',runSearch); $('searchReloadBtn').addEventListener('click',async()=>{await loadRecentSPBs(2000);state.searchLoaded=true;runSearch();}); $('searchInput').addEventListener('input',()=>{state.searchTerm=$('searchInput').value;runSearch();});
-  if(!state.searchLoaded){loadRecentSPBs(2000).then(()=>{state.searchLoaded=true;runSearch();}).catch(err=>{console.error(err);$('searchResults').innerHTML='<div class="empty">Gagal memuat data.</div>';});} else runSearch();
+  const f=state.searchFilters||{start:'',end:'',type:'all',category:'all',status:'active'};
+  target.innerHTML='<div class="grid" style="gap:16px">'
+    +'<div class="card card-pad">'
+    +'<div class="section-head"><div><div class="card-title">Cari SPB</div><div class="card-sub">Ketik kode SPB, No LRB, tujuan, barang, kategori, atau keterangan.</div></div><button id="searchReloadBtn" class="btn btn-secondary" type="button">Muat Ulang</button></div>'
+    +'<div class="search-bar" style="margin-top:12px"><input id="searchInput" class="input" value="'+escapeHtml(state.searchTerm)+'" placeholder="Contoh: R26I0001 / Benang / PT XYZ / LRB-001"><button id="searchBtn" class="btn btn-primary" type="button">Cari</button></div>'
+    +'<div class="form-grid" style="margin-top:12px">'
+    +'<div class="field"><label>Tanggal mulai</label><input id="searchStart" class="input" type="date" value="'+escapeHtml(f.start)+'"></div>'
+    +'<div class="field"><label>Tanggal akhir</label><input id="searchEnd" class="input" type="date" value="'+escapeHtml(f.end)+'"></div>'
+    +'<div class="field"><label>Jenis</label><select id="searchType" class="select"><option value="all">Semua</option><option value="Jasa">Jasa</option><option value="Retur">Retur</option><option value="Umum">Umum</option></select></div>'
+    +'<div class="field"><label>Kategori Retur</label><select id="searchCategory" class="select"><option value="all">Semua Kategori</option>'+RETUR_CATEGORIES.map(function(x){return '<option value="'+escapeHtml(x)+'">'+escapeHtml(x)+'</option>';}).join('')+'</select></div>'
+    +'</div>'
+    +'<div class="search-bar" style="margin-top:12px"><select id="searchStatus" class="select" style="max-width:220px"><option value="active">Aktif</option><option value="cancelled">Dibatalkan</option><option value="all">Semua status</option></select><button id="searchResetBtn" class="btn btn-soft" type="button">Reset Filter</button></div>'
+    +'<div id="searchMeta" class="small-help" style="margin-top:8px"></div>'
+    +'</div>'
+    +'<div class="card card-pad"><div id="searchResults"></div></div>'
+    +'</div>';
+  $('searchType').value=f.type||'all';
+  $('searchCategory').value=f.category||'all';
+  $('searchStatus').value=f.status||'active';
+  function sync(){
+    state.searchTerm=$('searchInput').value;
+    state.searchFilters={start:$('searchStart').value,end:$('searchEnd').value,type:$('searchType').value,category:$('searchCategory').value,status:$('searchStatus').value};
+    runSearch();
+  }
+  $('searchBtn').addEventListener('click',sync);
+  $('searchReloadBtn').addEventListener('click',async function(){try{await loadRecentSPBs(2000);state.searchLoaded=true;runSearch();}catch(err){console.error(err);$('searchResults').innerHTML='<div class="empty">Gagal memuat data.</div>';}});
+  $('searchInput').addEventListener('input',sync);
+  ['searchStart','searchEnd','searchType','searchCategory','searchStatus'].forEach(function(id){$(id).addEventListener('change',sync);});
+  $('searchResetBtn').addEventListener('click',function(){state.searchTerm='';state.searchFilters={start:'',end:'',type:'all',category:'all',status:'active'};renderSearchView();});
+  if(!state.searchLoaded){loadRecentSPBs(2000).then(function(){state.searchLoaded=true;runSearch();}).catch(function(err){console.error(err);$('searchResults').innerHTML='<div class="empty">Gagal memuat data.</div>';});} else runSearch();
 }
 function runSearch() {
-  const term=normalized(state.searchTerm||$('searchInput')?.value||''); const rows=state.spbs.filter(r=>{if(!term)return true;const blob=[r.spbCode,r.noLrb,r.tanggal,r.type,r.returCategory,r.toParty,r.note,r.createdByName,...(r.items||[]).flatMap(x=>[x.kodeBarang,x.namaBarang,x.keterangan,x.noPo,...(Array.isArray(x.quantities)?x.quantities.flatMap(q=>[q.qty,q.satuan]):[])])].map(normalized).join(' ');return blob.includes(term);});
-  $('searchMeta').textContent=`${rows.length} hasil ditemukan dari ${state.spbs.length} data yang dimuat.`;
-  $('searchResults').innerHTML=renderSpbTable(rows.slice(0,500),state.role==='admin',true,true); bindSpbTableActions($('searchResults'));
+  const term=normalized(state.searchTerm||$('searchInput')?.value||'');
+  const f=state.searchFilters||{start:'',end:'',type:'all',category:'all',status:'active'};
+  let rows=state.spbs.filter(function(r){
+    if(f.start && String(r.tanggal||'') < f.start) return false;
+    if(f.end && String(r.tanggal||'') > f.end) return false;
+    if(f.type!=='all' && r.type!==f.type) return false;
+    if(f.category!=='all' && r.returCategory!==f.category) return false;
+    if(f.status==='active' && r.status==='cancelled') return false;
+    if(f.status==='cancelled' && r.status!=='cancelled') return false;
+    if(!term) return true;
+    const blob=[r.spbCode,r.noLrb,r.tanggal,r.type,r.returCategory,r.toParty,r.toPartyLine1,r.toPartyLine2,r.note,r.createdByName].concat((r.items||[]).flatMap(function(x){return [x.kodeBarang,x.namaBarang,x.keterangan,x.noPo].concat(normalizedQuantityLines(x).flatMap(function(q){return [q.qty,q.satuan];}));})).map(normalized).join(' ');
+    return blob.includes(term);
+  });
+  rows.sort(function(a,b){return String(b.tanggal||'').localeCompare(String(a.tanggal||''))||String(b.spbCode||'').localeCompare(String(a.spbCode||''));});
+  $('searchMeta').textContent=rows.length+' hasil ditemukan dari '+state.spbs.length+' data yang dimuat.';
+  $('searchResults').innerHTML=renderSpbTable(rows.slice(0,500),state.role==='admin',true,true);
+  bindSpbTableActions($('searchResults'));
 }
 
 const XLSX_CDN = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
