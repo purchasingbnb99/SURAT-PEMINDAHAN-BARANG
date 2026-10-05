@@ -283,7 +283,7 @@ function chunkText(value,max) {
   return text.length <= max ? text : `${text.slice(0,max-1)}…`;
 }
 
-const navIcons = { dashboard:'⌂', spb:'▣', search:'⌕', report:'▤', destination:'◎', year:'Y', masterbarang:'▦', satuan:'◌', signature:'✎', staff:'◉', activity:'◷', backup:'⇩', printsettings:'⚙' };
+const navIcons = { dashboard:'⌂', spb:'▣', search:'⌕', report:'▤', destination:'◎', year:'Y', masterbarang:'▦', satuan:'◌', signature:'✎', staff:'◉', activity:'◷', backup:'⇩', printsettings:'⚙', datahealth:'✓' };
 function navButton(key,label,adminOnly=true) {
   return `<button type="button" class="nav-link" data-nav="${key}" ${adminOnly?'data-admin="1"':''}><span style="width:20px;text-align:center">${navIcons[key]||'•'}</span><span>${label}</span></button>`;
 }
@@ -301,23 +301,24 @@ function renderNavigation() {
     navButton('staff','Staff Aktif'),
     navButton('activity','Aktivitas'),
     navButton('backup','Backup Data'),
-    navButton('printsettings','Pengaturan Print')
+    navButton('printsettings','Pengaturan Print'),
+    navButton('datahealth','Pemeriksaan Data')
   ].join('');
   $('staffNav').innerHTML = [navButton('dashboard','Dashboard',false),navButton('search','Cari SPB',false)].join('');
   document.querySelectorAll('[data-nav]').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.nav)));
 }
 function setNavActive(key) { document.querySelectorAll('[data-nav]').forEach(btn=>btn.classList.toggle('active',btn.dataset.nav===key)); }
 function navigate(key) {
-  const allowedAdmin = ['dashboard','spb','search','report','destination','year','masterbarang','satuan','signature','staff','activity','backup','printsettings'];
+  const allowedAdmin = ['dashboard','spb','search','report','destination','year','masterbarang','satuan','signature','staff','activity','backup','printsettings','datahealth'];
   const allowedStaff = ['dashboard','search'];
   if (state.role==='admin' && !allowedAdmin.includes(key)) key='dashboard';
   if (state.role==='staff' && !allowedStaff.includes(key)) key='dashboard';
   state.currentView = key;
-  const ids = ['dashboard','spb','search','reports','destinations','yearcodes','masterbarang','satuan','signature','staff','activity','backup','printsettings'];
+  const ids = ['dashboard','spb','search','reports','destinations','yearcodes','masterbarang','satuan','signature','staff','activity','backup','printsettings','datahealth'];
   ids.forEach(id=>$(`view-${id}`)?.classList.add('hidden'));
   const targetId = key==='report'?'reports':key==='destination'?'destinations':key==='year'?'yearcodes':key;
   $(`view-${targetId}`)?.classList.remove('hidden');
-  const titles = {dashboard:'Dashboard',spb:state.editingId?'Edit SPB':'Input Surat Pemindahan Barang',search:'Cari SPB',report:'Laporan SPB',destination:'Master Tujuan',year:'Master Kode Tahun',masterbarang:'Master Barang',satuan:'Master Satuan',signature:'Tanda Tangan Admin',staff:'Staff Aktif',activity:'Aktivitas Sistem',backup:'Backup & Restore'};
+  const titles = {dashboard:'Dashboard',spb:state.editingId?'Edit SPB':'Input Surat Pemindahan Barang',search:'Cari SPB',report:'Laporan SPB',destination:'Master Tujuan',year:'Master Kode Tahun',masterbarang:'Master Barang',satuan:'Master Satuan',signature:'Tanda Tangan Admin',staff:'Staff Aktif',activity:'Aktivitas Sistem',backup:'Backup & Restore',datahealth:'Pemeriksaan Data'};
   $('pageTitle').textContent = titles[key] || 'Dashboard';
   $('pageSubtitle').textContent = state.role==='admin'?'Administrasi Surat Pemindahan Barang':'Akses Staff — lihat, cari dan print';
   setNavActive(key); closeDrawer();
@@ -334,6 +335,7 @@ function navigate(key) {
   if (key==='activity') renderActivityView();
   if (key==='backup') renderBackupView();
   if (key==='printsettings') renderPrintSettingsView();
+  if (key==='datahealth') renderDataHealthView();
 }
 
 async function loadProfile(user) {
@@ -548,6 +550,67 @@ async function renderActivityView(){
     if(list)list.innerHTML='<div class="empty" style="color:#b91c1c">'+escapeHtml(firebaseError(err))+'</div>';
   }
 }
+
+function analyzeSpbData(rows){
+  const issues=[];
+  const codeMap=new Map();
+  const lrbMap=new Map();
+  const addIssue=(severity,code,id,detail)=>issues.push({severity,spbCode:code||'-',id:id||'',detail});
+  rows.forEach(function(r){
+    const code=String(r.spbCode||'').trim();
+    const id=String(r.id||'');
+    if(!code) addIssue('error','-',id,'No. SPB kosong.');
+    else { if(!codeMap.has(code)) codeMap.set(code,[]); codeMap.get(code).push(id); }
+    const type=String(r.type||'').trim();
+    if(!['Jasa','Retur','Umum'].includes(type)) addIssue('error',code,id,'Jenis SPB tidak valid: '+(type||'(kosong)')+'.');
+    if(!String(r.tanggal||'').trim()) addIssue('error',code,id,'Tanggal kosong.');
+    if(!String(r.toPartyLine1||r.toParty||'').trim()) addIssue('error',code,id,'Kepada kosong.');
+    if(!String(r.fromParty||'').trim() && !String(r.fromCompany||'').trim()) addIssue('warning',code,id,'Asal/Dari kosong.');
+    const items=Array.isArray(r.items)?r.items:[];
+    if(!items.length) addIssue('error',code,id,'Tidak ada detail barang.');
+    items.forEach(function(item,idx){
+      if(!String(item?.namaBarang||item?.name||'').trim()) addIssue('error',code,id,'Item '+(idx+1)+' tidak memiliki Nama Barang.');
+      const qs=normalizeQuantities(item);
+      if(!qs.length) addIssue('warning',code,id,'Item '+(idx+1)+' belum memiliki Qty/Satuan.');
+      qs.forEach(function(q){ if(safeNum(q.qty)<0) addIssue('error',code,id,'Item '+(idx+1)+' memiliki Qty negatif.'); });
+    });
+    const lrb=String(r.noLrb||'').trim();
+    if(lrb){ if(!lrbMap.has(lrb)) lrbMap.set(lrb,[]); lrbMap.get(lrb).push(id); }
+    if(r.status && !['active','cancelled'].includes(String(r.status))) addIssue('warning',code,id,'Status tidak dikenali: '+String(r.status)+'.');
+  });
+  codeMap.forEach(function(ids,code){ if(ids.length>1) addIssue('error',code,ids.join(','),'No. SPB duplikat pada '+ids.length+' dokumen.'); });
+  lrbMap.forEach(function(ids,lrb){ if(ids.length>1) addIssue('warning','-',ids.join(','),'No. LRB duplikat: '+lrb+'.'); });
+  const errors=issues.filter(x=>x.severity==='error').length;
+  const warnings=issues.filter(x=>x.severity==='warning').length;
+  return {issues,errors,warnings,scanned:rows.length,checkedAt:new Date()};
+}
+
+function renderDataHealthView(){
+  const t=$('view-datahealth'); if(!t)return;
+  t.innerHTML='<div class="grid" style="gap:16px"><div class="card card-pad"><div class="section-head"><div><div class="card-title">Pemeriksaan Data SPB</div><div class="card-sub">Pemeriksaan read-only untuk menemukan data kosong, duplikat, atau tidak konsisten sebelum data digunakan sebagai arsip/laporan.</div></div><div class="section-actions"><button id="runDataHealthBtn" class="btn btn-primary">Periksa Data</button><button id="exportDataHealthBtn" class="btn btn-secondary">Export Hasil</button></div></div><div class="alert alert-info" style="margin-top:14px">Pemeriksaan tidak mengubah data Firestore. Maksimal 5.000 SPB terbaru diperiksa dalam satu kali scan.</div><div id="dataHealthSummary" class="small-help" style="margin-top:12px">Belum diperiksa.</div><div id="dataHealthResult" style="margin-top:12px"><div class="empty">Klik “Periksa Data” untuk memulai.</div></div></div></div>';
+  let report=null;
+  $('runDataHealthBtn').addEventListener('click',async function(){
+    const btn=$('runDataHealthBtn'); setBusy(btn,true,'Memeriksa...');
+    try{
+      const rows=await loadRecentSPBs(5000); report=analyzeSpbData(rows);
+      const summary=$('dataHealthSummary');
+      summary.textContent='Diperiksa '+report.scanned+' SPB pada '+formatDateTime(report.checkedAt)+'. Error: '+report.errors+' • Peringatan: '+report.warnings+'.';
+      const result=$('dataHealthResult');
+      if(!report.issues.length){result.innerHTML='<div class="alert alert-success">Tidak ditemukan masalah pada data yang diperiksa.</div>';return;}
+      const body=report.issues.slice(0,300).map(function(x){return '<tr><td>'+escapeHtml(x.severity==='error'?'Error':'Peringatan')+'</td><td>'+escapeHtml(x.spbCode)+'</td><td>'+escapeHtml(x.detail)+'</td></tr>';}).join('');
+      result.innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Status</th><th>No. SPB</th><th>Temuan</th></tr></thead><tbody>'+body+'</tbody></table></div>'+(report.issues.length>300?'<div class="small-help" style="margin-top:8px">Menampilkan 300 temuan pertama. Export Hasil berisi seluruh temuan.</div>':'');
+    }catch(err){console.error(err);showToast(firebaseError(err),'error');}
+    finally{setBusy(btn,false);}
+  });
+  $('exportDataHealthBtn').addEventListener('click',function(){
+    if(!report)return showToast('Jalankan Pemeriksaan Data terlebih dahulu.','warning');
+    const rows=report.issues.map(function(x){return {Status:x.severity==='error'?'Error':'Peringatan','No SPB':x.spbCode,'Temuan':x.detail};});
+    const csv=rows.length?['Status,No SPB,Temuan'].concat(rows.map(function(x){return [x.Status,x['No SPB'],x.Temuan].map(csvCell).join(',');})).join('\n'):'Status,No SPB,Temuan\nOK,-,Tidak ada masalah';
+    downloadBlob('\ufeff'+csv,'Hasil-Pemeriksaan-SPB-'+todayISO()+'.csv','text/csv;charset=utf-8');
+    void logActivity('data_health_export','dataHealth','',`Export pemeriksaan ${rows.length} temuan`,{count:rows.length});
+  });
+}
+
 function renderBackupView(){
   const t=$('view-backup');
   if(!t)return;
